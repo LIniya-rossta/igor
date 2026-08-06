@@ -111,7 +111,7 @@ await telegram("setMyCommands", {
   commands: [
     { command: "start", description: "Открыть главное меню" },
     { command: "status", description: "Показать актуальный прайс" },
-    { command: "upload", description: "Загрузить большой XLSX до 1 ГБ" },
+    { command: "upload", description: "Загрузить большой Excel-прайс до 1 ГБ" },
     { command: "history", description: "История версий и откат" },
     { command: "help", description: "Инструкция по управлению" },
   ],

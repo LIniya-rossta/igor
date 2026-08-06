@@ -10,10 +10,9 @@ import {
   readSmallJson,
   uploadShape,
   UploadHttpError,
-  XLSX_MIME,
 } from "@/lib/browser-upload";
+import { excelMimeType, safeExcelUploadFilename } from "@/lib/excel-file";
 import { getRuntimeEnv } from "@/lib/runtime-env";
-import { isXlsxFilename } from "@/lib/xlsx";
 
 export const dynamic = "force-dynamic";
 
@@ -23,23 +22,7 @@ type StartBody = {
 };
 
 function validFilename(value: unknown) {
-  if (typeof value !== "string") return null;
-  const filename = value.trim().normalize("NFC");
-  const hasControlCharacter = [...filename].some((character) => {
-    const codePoint = character.codePointAt(0) ?? 0;
-    return codePoint <= 0x1f || codePoint === 0x7f;
-  });
-  if (
-    filename.length < 1 ||
-    filename.length > 180 ||
-    hasControlCharacter ||
-    filename.includes("/") ||
-    filename.includes("\\") ||
-    !isXlsxFilename(filename)
-  ) {
-    return null;
-  }
-  return filename;
+  return safeExcelUploadFilename(value);
 }
 
 export async function POST(request: Request) {
@@ -60,7 +43,11 @@ export async function POST(request: Request) {
     const body = await readSmallJson<StartBody>(request);
     const filename = validFilename(body.filename);
     if (!filename) {
-      throw new UploadHttpError(400, "invalid_filename", "Выберите файл с расширением .xlsx.");
+      throw new UploadHttpError(
+        400,
+        "invalid_filename",
+        "Выберите файл Excel с расширением .xls или .xlsx.",
+      );
     }
     if (
       typeof body.size !== "number" ||
@@ -96,7 +83,7 @@ export async function POST(request: Request) {
     const multipart = await runtimeEnv.PRICE_FILES.createMultipartUpload(
       session.objectKey,
       {
-        httpMetadata: { contentType: XLSX_MIME },
+        httpMetadata: { contentType: excelMimeType(filename) },
         customMetadata: { uploadSessionId: session.id },
       },
     );

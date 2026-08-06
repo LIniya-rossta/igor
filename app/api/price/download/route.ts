@@ -1,7 +1,6 @@
 import { contentDisposition, getCurrentPriceVersion } from "@/lib/price";
+import { excelMimeType } from "@/lib/excel-file";
 import { getRuntimeEnv } from "@/lib/runtime-env";
-
-const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +21,7 @@ export async function GET(request: Request) {
       "Cache-Control": "private, no-store",
       "Content-Disposition": contentDisposition(current.originalName),
       "Content-Length": String(object.size),
-      "Content-Type": XLSX_MIME,
+      "Content-Type": excelMimeType(current.originalName),
       "X-Content-Type-Options": "nosniff",
     });
     headers.set("ETag", object.httpEtag);

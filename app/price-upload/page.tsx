@@ -43,8 +43,11 @@ function formatBytes(bytes: number) {
   return `${bytes} Б`;
 }
 
-function isXlsx(file: File) {
-  return file.name.toLowerCase().endsWith(".xlsx");
+function excelFormat(file: File) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".xlsx")) return "XLSX";
+  if (name.endsWith(".xls")) return "XLS";
+  return null;
 }
 
 async function responseError(response: Response) {
@@ -124,10 +127,10 @@ export default function PriceUploadPage() {
     contextRef.current = null;
     setProgress(0);
 
-    if (!isXlsx(file)) {
+    if (!excelFormat(file)) {
       setSelectedFile(null);
-      setError("Выберите файл Excel с расширением .xlsx.");
-      setStatus("Нужен файл формата XLSX");
+      setError("Выберите файл Excel с расширением .xls или .xlsx.");
+      setStatus("Нужен файл формата XLS или XLSX");
       return;
     }
     if (file.size <= 0) {
@@ -227,7 +230,7 @@ export default function PriceUploadPage() {
       }
 
       setPhase("finalizing");
-      setStatus("Проверяем XLSX и публикуем прайс…");
+      setStatus("Проверяем Excel-файл и публикуем прайс…");
       await apiRequest("/api/price-upload/complete", currentToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -334,7 +337,7 @@ export default function PriceUploadPage() {
 
         <section className={styles.content}>
           <div className={styles.intro}>
-            <span className={styles.kicker}>UNB PRICE MANAGER / XLSX</span>
+            <span className={styles.kicker}>UNB PRICE MANAGER / XLS + XLSX</span>
             <h1>Обновите прайс<br />одним файлом.</h1>
             <p>
               Выберите Excel-файл до 1 ГБ. Он загрузится частями, пройдёт проверку и сразу
@@ -350,7 +353,7 @@ export default function PriceUploadPage() {
           <div className={styles.uploader}>
             <div className={styles.windowBar}>
               <div aria-hidden="true"><i /><i /><i /></div>
-              <span>secure-upload.xlsx</span>
+              <span>secure-upload.excel</span>
               <b>≤ 1 ГБ</b>
             </div>
 
@@ -381,7 +384,7 @@ export default function PriceUploadPage() {
                   <input
                     ref={inputRef}
                     type="file"
-                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={handleFileInput}
                     disabled={locked}
                     className={styles.fileInput}
@@ -398,11 +401,11 @@ export default function PriceUploadPage() {
                       {selectedFile ? (
                         <>
                           <b>{selectedFile.name}</b>
-                          <small>{formatBytes(selectedFile.size)} · XLSX</small>
+                          <small>{formatBytes(selectedFile.size)} · {excelFormat(selectedFile)}</small>
                         </>
                       ) : (
                         <>
-                          <b>Перетащите XLSX сюда</b>
+                          <b>Перетащите XLS или XLSX сюда</b>
                           <small>или нажмите, чтобы выбрать файл</small>
                         </>
                       )}

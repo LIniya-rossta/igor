@@ -1,5 +1,10 @@
 import { priceInfo } from "./price-config";
-import { LivePriceDate, LivePriceFileLine } from "./live-price";
+import {
+  LivePriceDate,
+  LivePriceFileLine,
+  LivePriceFilename,
+  LivePriceFormat,
+} from "./live-price";
 
 const categories = [
   {
@@ -69,7 +74,7 @@ export default function Home() {
             ценами, гарантией и человеческой консультацией.
           </p>
           <div className="hero-actions">
-            <a className="button button-primary" href={priceInfo.downloadUrl} download="UnB-price.xlsx">
+            <a className="button button-primary" href={priceInfo.downloadUrl} download>
               Скачать прайс <span aria-hidden="true">↓</span>
             </a>
             <a className="button button-secondary" href="#catalog">
@@ -123,7 +128,7 @@ export default function Home() {
                 <div className="category-symbol" aria-hidden="true"><span /><span /></div>
                 <h3>{category.title}</h3>
                 <p>{category.description}</p>
-                <a href={priceInfo.downloadUrl} download="UnB-price.xlsx" aria-label={`Скачать прайс: ${category.title}`}>
+                <a href={priceInfo.downloadUrl} download aria-label={`Скачать прайс: ${category.title}`}>
                   В прайс-листе <span aria-hidden="true">↗</span>
                 </a>
               </article>
@@ -143,6 +148,7 @@ export default function Home() {
           <ul className="price-features">
             <li><span>✓</span> Удобная таблица с фильтрами</li>
             <li><span>✓</span> Цены в USD и KGS</li>
+            <li><span>✓</span> Поддержка XLS и XLSX</li>
             <li><span>✓</span> Отдельная инструкция по обновлению</li>
           </ul>
         </div>
@@ -150,8 +156,8 @@ export default function Home() {
         <div className="price-window">
           <div className="window-bar">
             <div><i /><i /><i /></div>
-            <span>price.unb.xlsx</span>
-            <span className="window-size">{priceInfo.format}</span>
+            <LivePriceFilename />
+            <span className="window-size"><LivePriceFormat /></span>
           </div>
           <div className="file-card">
             <div className="file-icon" aria-hidden="true">X</div>
@@ -162,11 +168,11 @@ export default function Home() {
             </div>
           </div>
           <div className="file-stats">
-            <div><span>Формат</span><b>{priceInfo.format}</b></div>
+            <div><span>Формат</span><b><LivePriceFormat /></b></div>
             <div><span>Обновление</span><b>{priceInfo.updateFrequency}</b></div>
             <div><span>Доступ</span><b>Свободный</b></div>
           </div>
-          <a className="download-button" href={priceInfo.downloadUrl} download="UnB-price.xlsx">
+          <a className="download-button" href={priceInfo.downloadUrl} download>
             <span>Скачать актуальный прайс</span><b aria-hidden="true">↓</b>
           </a>
           <p className="file-note">После скачивания уточните финальную цену и наличие у менеджера.</p>

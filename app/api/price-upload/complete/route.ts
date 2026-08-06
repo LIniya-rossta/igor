@@ -14,9 +14,10 @@ import {
   UploadHttpError,
   type BrowserUploadSession,
 } from "@/lib/browser-upload";
+import { isValidExcelObject } from "@/lib/excel";
 import { formatPriceDate, formatPriceVersion } from "@/lib/price";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
-import { formatFileSize, isValidXlsxObject } from "@/lib/xlsx";
+import { formatFileSize } from "@/lib/xlsx";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +95,7 @@ function publicSiteUrl(runtimeEnv: RuntimeEnv, request: Request) {
 function isDeterministicValidationError(error: unknown) {
   return (
     error instanceof UploadHttpError &&
-    (error.code === "invalid_xlsx" || error.code === "size_mismatch")
+    (error.code === "invalid_excel" || error.code === "size_mismatch")
   );
 }
 
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
     if (!session.fileSize || !session.originalName || !session.uploadId) {
       throw new UploadHttpError(409, "not_started", "Сначала выберите файл.");
     }
+    const originalName = session.originalName;
     if (session.status !== "uploading" && session.status !== "validating") {
       throw new UploadHttpError(
         409,
@@ -155,16 +157,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const valid = await isValidXlsxObject(
+    const valid = await isValidExcelObject(
       runtimeEnv.PRICE_FILES,
       leasedSession.objectKey,
       leasedSession.fileSize,
+      originalName,
     );
     if (!valid) {
       throw new UploadHttpError(
         422,
-        "invalid_xlsx",
-        "Файл повреждён или не является корректным документом XLSX.",
+        "invalid_excel",
+        "Файл повреждён, зашифрован или не является корректным документом XLS/XLSX.",
       );
     }
 
@@ -226,7 +229,7 @@ export async function POST(request: Request) {
             const reason =
               error instanceof UploadHttpError && error.code === "size_mismatch"
                 ? "размер собранного файла не совпал с исходным"
-                : "это повреждённый или некорректный документ XLSX";
+                : "это повреждённый, зашифрованный или некорректный документ XLS/XLSX";
             await tryNotifyTelegram(
               runtimeEnv,
               leasedSession.chatId,

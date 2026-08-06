@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { priceVersions } from "@/db/schema";
 import { priceInfo } from "@/app/price-config";
+import { excelContentDisposition } from "@/lib/excel-file";
 
 export type PriceVersion = typeof priceVersions.$inferSelect;
 
@@ -69,9 +70,5 @@ export function toPublicPriceMeta(version: PriceVersion | null) {
 }
 
 export function contentDisposition(filename: string) {
-  const encoded = encodeURIComponent(filename).replace(/[!'()*]/g, (character) =>
-    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-
-  return `attachment; filename="UnB-price.xlsx"; filename*=UTF-8''${encoded}`;
+  return excelContentDisposition(filename);
 }

@@ -72,3 +72,13 @@ export function LivePriceFileLine() {
     </p>
   );
 }
+
+export function LivePriceFilename() {
+  const meta = usePriceMeta();
+  return <span aria-live="polite">{meta.filename}</span>;
+}
+
+export function LivePriceFormat() {
+  const meta = usePriceMeta();
+  return <span aria-live="polite">{meta.filename.toLowerCase().endsWith(".xls") ? "XLS" : "XLSX"}</span>;
+}

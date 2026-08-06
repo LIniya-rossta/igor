@@ -10,9 +10,6 @@ export const BROWSER_UPLOAD_TTL_MS = BROWSER_UPLOAD_IDLE_TTL_MS;
 export const BROWSER_UPLOAD_ABSOLUTE_LIFETIME_MS = 4 * 60 * 60 * 1000;
 export const BROWSER_UPLOAD_VALIDATION_LEASE_MS = 10 * 60 * 1000;
 
-export const XLSX_MIME =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
 export const UPLOAD_RESPONSE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
   Pragma: "no-cache",
@@ -137,7 +134,7 @@ export async function issueBrowserUploadSession(chatId: string) {
   const tokenHash = await sha256Hex(token);
   const now = Date.now();
   const expiresAt = now + BROWSER_UPLOAD_IDLE_TTL_MS;
-  const objectKey = `price/versions/${id}.xlsx`;
+  const objectKey = `price/versions/${id}.excel`;
 
   await getDb().insert(browserUploadSessions).values({
     id,

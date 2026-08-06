@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
+  excelContentDisposition,
+  excelFallbackFilename,
+  excelFileFormat,
+  excelMimeType,
+  isExcelFilename,
+  safeExcelUploadFilename,
+} from "../lib/excel-file.ts";
+import {
   isValidXlsxBytes,
   isXlsxFilename,
   MAX_XLSX_BYTES,
@@ -97,13 +105,13 @@ const linkedWorksheetEntries = [
   ],
 ];
 
-async function renderHome() {
+async function renderPage(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("https://unb.example/", {
+    new Request(new URL(pathname, "https://unb.example/"), {
       headers: {
         accept: "text/html",
         host: "unb.example",
@@ -119,7 +127,7 @@ async function renderHome() {
 }
 
 test("renders the UnB price landing page and social metadata", async () => {
-  const response = await renderHome();
+  const response = await renderPage();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
@@ -129,6 +137,16 @@ test("renders the UnB price landing page and social metadata", async () => {
   assert.match(html, /Скачать актуальный прайс/);
   assert.match(html, /\/api\/price\/download/);
   assert.match(html, /https:\/\/unb\.example\/og-unb\.png/);
+  assert.match(html, /Поддержка XLS и XLSX/);
+});
+
+test("renders a secure uploader for XLS and XLSX", async () => {
+  const response = await renderPage("/price-upload");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /UNB PRICE MANAGER \/ XLS \+ XLSX/);
+  assert.match(html, /\.xls,\.xlsx,application\/vnd\.ms-excel/);
+  assert.match(html, /Перетащите XLS или XLSX сюда/);
 });
 
 test("accepts a real XLSX and rejects lookalike files", async () => {
@@ -196,4 +214,28 @@ test("accepts a real XLSX and rejects lookalike files", async () => {
   assert.equal(isXlsxFilename("PRICE.XLSX"), true);
   assert.equal(isXlsxFilename("price.xls"), false);
   assert.equal(MAX_XLSX_BYTES, 20 * 1024 * 1024);
+});
+
+test("recognizes safe Excel filenames and format-specific MIME types", () => {
+  assert.equal(isExcelFilename("PRICE.XLS"), true);
+  assert.equal(isExcelFilename("PRICE.XLSX"), true);
+  assert.equal(isExcelFilename("price.xlsm"), false);
+  assert.equal(isExcelFilename("price.xls.exe"), false);
+  assert.equal(excelFileFormat("Прайс.XLS"), "xls");
+  assert.equal(excelFileFormat("Прайс.xlsx"), "xlsx");
+  assert.equal(excelMimeType("Прайс.xls"), "application/vnd.ms-excel");
+  assert.equal(
+    excelMimeType("Прайс.xlsx"),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  assert.equal(excelFallbackFilename("Прайс.xls"), "UnB-price.xls");
+  assert.equal(excelFallbackFilename("Прайс.xlsx"), "UnB-price.xlsx");
+  assert.equal(
+    excelContentDisposition("Прайс август.xls"),
+    "attachment; filename=\"UnB-price.xls\"; filename*=UTF-8''%D0%9F%D1%80%D0%B0%D0%B9%D1%81%20%D0%B0%D0%B2%D0%B3%D1%83%D1%81%D1%82.xls",
+  );
+  assert.equal(safeExcelUploadFilename(" Прайс.XLS "), "Прайс.XLS");
+  assert.equal(safeExcelUploadFilename("../price.xls"), null);
+  assert.equal(safeExcelUploadFilename("price.xls\\evil"), null);
+  assert.equal(safeExcelUploadFilename("price.xls\n"), "price.xls");
 });

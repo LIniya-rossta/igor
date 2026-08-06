@@ -6,6 +6,16 @@ import {
   revokeIssuedBrowserUploadSession,
 } from "@/lib/browser-upload";
 import {
+  excelFileFormat,
+  excelMimeType,
+  isValidExcelBytes,
+  MAX_TELEGRAM_EXCEL_BYTES,
+} from "@/lib/excel";
+import {
+  safeExcelUploadFilename,
+  XLS_MIME,
+} from "@/lib/excel-file";
+import {
   formatPriceDate,
   formatPriceVersion,
   getCurrentPriceVersion,
@@ -14,9 +24,6 @@ import {
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import {
   formatFileSize,
-  isValidXlsxBytes,
-  isXlsxFilename,
-  MAX_XLSX_BYTES,
 } from "@/lib/xlsx";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +35,6 @@ const CLAIM_BLOCK_MS = 60 * 60 * 1000;
 const CLAIM_ATTEMPT_LIMIT = 5;
 const MAX_WEBHOOK_BYTES = 1024 * 1024;
 const MAX_BROWSER_UPLOAD_BYTES = 1024 * 1024 * 1024;
-const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 type TelegramDocument = {
   file_id: string;
@@ -215,13 +221,13 @@ function helpText(origin: string) {
   return [
     "UnB Price Manager готов к работе.",
     "",
-    "Файл .xlsx до 20 МБ можно просто отправить в этот чат — бот покажет имя и размер, а затем попросит подтверждение.",
+    "Файл .xls или .xlsx до 20 МБ можно просто отправить в этот чат — бот покажет имя и размер, а затем попросит подтверждение.",
     "",
     "Для файла больше 20 МБ и до 1 ГБ используйте /upload. Личную защищённую загрузку нужно начать за 30 минут; во время передачи файла срок продлевается автоматически.",
     "",
     "/status — текущая версия",
     "/history — история и откат",
-    "/upload — загрузить большой XLSX",
+    "/upload — загрузить большой Excel-прайс",
     "/help — эта памятка",
     "",
     `Сайт: ${origin}`,
@@ -252,7 +258,7 @@ async function sendBrowserUploadLink(
         "Защищённая загрузка готова.",
         "",
         ...(filename ? [`Файл: ${filename}`, ""] : []),
-        "Откройте личную ссылку и выберите XLSX-файл размером до 1 ГБ.",
+        "Откройте личную ссылку и выберите XLS- или XLSX-файл размером до 1 ГБ.",
         "",
         "Начните загрузку в течение 30 минут. Пока файл передаётся, срок продлевается автоматически. Ссылка предназначена только для вас — не пересылайте её.",
         ...(isLocalUrl
@@ -370,7 +376,7 @@ function historyMarkup(
 async function showHistory(runtimeEnv: RuntimeEnv, chatId: string) {
   const versions = await getRecentPriceVersions(5);
   if (!versions.length) {
-    await sendMessage(runtimeEnv, chatId, "История пока пуста. Отправьте первый файл .xlsx.");
+    await sendMessage(runtimeEnv, chatId, "История пока пуста. Отправьте первый файл .xls или .xlsx.");
     return;
   }
 
@@ -395,10 +401,11 @@ async function queueDocument(
   const document = message.document;
   if (!document) return;
 
-  const filename = document.file_name?.trim() || "price.xlsx";
+  const fallbackFilename = document.mime_type === XLS_MIME ? "price.xls" : "price.xlsx";
+  const filename = safeExcelUploadFilename(document.file_name ?? fallbackFilename);
   const fileSize = document.file_size ?? 0;
-  if (!isXlsxFilename(filename)) {
-    await sendMessage(runtimeEnv, chatId, "Нужен файл Excel с расширением .xlsx.");
+  if (!filename) {
+    await sendMessage(runtimeEnv, chatId, "Нужен файл Excel с расширением .xls или .xlsx.");
     return;
   }
   if (fileSize <= 0) {
@@ -406,10 +413,10 @@ async function queueDocument(
     return;
   }
   if (fileSize > MAX_BROWSER_UPLOAD_BYTES) {
-    await sendMessage(runtimeEnv, chatId, "Максимальный размер XLSX для защищённой загрузки — 1 ГБ.");
+    await sendMessage(runtimeEnv, chatId, "Максимальный размер Excel-файла для защищённой загрузки — 1 ГБ.");
     return;
   }
-  if (fileSize > MAX_XLSX_BYTES) {
+  if (fileSize > MAX_TELEGRAM_EXCEL_BYTES) {
     await sendBrowserUploadLink(runtimeEnv, chatId, requestOrigin, filename);
     return;
   }
@@ -494,9 +501,13 @@ async function downloadTelegramFile(runtimeEnv: RuntimeEnv, telegramFileId: stri
   if (!response.ok) throw new Error("Telegram file download failed");
 
   const declaredSize = Number(response.headers.get("content-length") ?? 0);
-  if (declaredSize > MAX_XLSX_BYTES) throw new Error("Telegram file is too large");
+  if (declaredSize > MAX_TELEGRAM_EXCEL_BYTES) {
+    throw new Error("Telegram file is too large");
+  }
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_XLSX_BYTES) throw new Error("Telegram file is too large");
+  if (bytes.byteLength > MAX_TELEGRAM_EXCEL_BYTES) {
+    throw new Error("Telegram file is too large");
+  }
   return bytes;
 }
 
@@ -561,21 +572,23 @@ async function publishPending(
   }
 
   const bytes = await downloadTelegramFile(runtimeEnv, pending.telegramFileId);
-  if (!(await isValidXlsxBytes(bytes))) {
+  if (!(await isValidExcelBytes(bytes, pending.originalName))) {
     await db.delete(pendingUploads).where(eq(pendingUploads.id, pending.id));
     await tryEditCallbackMessage(
       runtimeEnv,
       callback,
-      "Файл отклонён: внутри не найден корректный Excel-документ .xlsx. Экспортируйте таблицу заново и отправьте её ещё раз.",
+      "Файл отклонён: содержимое не соответствует корректному XLS/XLSX, файл зашифрован или содержит макросы. Пересохраните прайс и отправьте его ещё раз.",
     );
     return;
   }
 
   const now = Date.now();
   const versionId = pending.id;
-  const objectKey = `price/versions/${versionId}.xlsx`;
+  const format = excelFileFormat(pending.originalName);
+  if (!format) throw new Error("Pending Excel filename is invalid");
+  const objectKey = `price/versions/${versionId}.${format}`;
   await runtimeEnv.PRICE_FILES.put(objectKey, bytes, {
-    httpMetadata: { contentType: XLSX_MIME },
+    httpMetadata: { contentType: excelMimeType(pending.originalName) },
   });
 
   await db.batch([
@@ -689,7 +702,7 @@ async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, r
   await sendMessage(
     runtimeEnv,
     chatId,
-    "Отправьте файл .xlsx, используйте /upload для большого файла или откройте /help.",
+    "Отправьте файл .xls или .xlsx, используйте /upload для большого файла или откройте /help.",
   );
 }
 
