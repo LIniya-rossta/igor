@@ -7,26 +7,46 @@ import {
   MAX_XLSX_BYTES,
 } from "../lib/xlsx.ts";
 
-function emptyStoredZip(names) {
+function testCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function storedZip(entries) {
   const encoder = new TextEncoder();
   const localRecords = [];
   const centralRecords = [];
   let localOffset = 0;
 
-  for (const name of names) {
+  for (const [name, content = ""] of entries) {
     const nameBytes = encoder.encode(name);
-    const local = new Uint8Array(30 + nameBytes.length);
+    const dataBytes = encoder.encode(content);
+    const crc32 = testCrc32(dataBytes);
+    const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
     const localView = new DataView(local.buffer);
     localView.setUint32(0, 0x04034b50, true);
     localView.setUint16(4, 20, true);
+    localView.setUint32(14, crc32, true);
+    localView.setUint32(18, dataBytes.length, true);
+    localView.setUint32(22, dataBytes.length, true);
     localView.setUint16(26, nameBytes.length, true);
     local.set(nameBytes, 30);
+    local.set(dataBytes, 30 + nameBytes.length);
 
     const central = new Uint8Array(46 + nameBytes.length);
     const centralView = new DataView(central.buffer);
     centralView.setUint32(0, 0x02014b50, true);
     centralView.setUint16(4, 20, true);
     centralView.setUint16(6, 20, true);
+    centralView.setUint32(16, crc32, true);
+    centralView.setUint32(20, dataBytes.length, true);
+    centralView.setUint32(24, dataBytes.length, true);
     centralView.setUint16(28, nameBytes.length, true);
     centralView.setUint32(42, localOffset, true);
     central.set(nameBytes, 46);
@@ -40,8 +60,8 @@ function emptyStoredZip(names) {
   const eocd = new Uint8Array(22);
   const eocdView = new DataView(eocd.buffer);
   eocdView.setUint32(0, 0x06054b50, true);
-  eocdView.setUint16(8, names.length, true);
-  eocdView.setUint16(10, names.length, true);
+  eocdView.setUint16(8, entries.length, true);
+  eocdView.setUint16(10, entries.length, true);
   eocdView.setUint32(12, centralSize, true);
   eocdView.setUint32(16, localOffset, true);
 
@@ -102,7 +122,30 @@ test("accepts a real XLSX and rejects lookalike files", async () => {
   assert.equal(await isValidXlsxBytes(workbook.subarray(0, workbook.length - 12)), false);
   assert.equal(
     await isValidXlsxBytes(
-      emptyStoredZip(["[Content_Types].xml", "_rels/.rels", "xl/workbook.xml"]),
+      storedZip([
+        ["[Content_Types].xml"],
+        ["_rels/.rels"],
+        ["xl/workbook.xml"],
+      ]),
+    ),
+    false,
+  );
+  assert.equal(
+    await isValidXlsxBytes(
+      storedZip([
+        [
+          "[Content_Types].xml",
+          '<Types><Default Extension="xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml">',
+        ],
+        [
+          "_rels/.rels",
+          '<Relationships><Relationship Type="x/relationships/officeDocument" Target="/xl/workbook.xml">',
+        ],
+        [
+          "xl/workbook.xml",
+          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets><sheet>',
+        ],
+      ]),
     ),
     false,
   );
