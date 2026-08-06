@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `pending_uploads_file_unique_id_unique` ON `pending_uploads` (`file_unique_id`);

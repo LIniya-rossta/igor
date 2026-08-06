@@ -1,4 +1,6 @@
+import Image from "next/image";
 import { priceInfo } from "./price-config";
+import { LivePriceDate, LivePriceFileLine } from "./live-price";
 
 const categories = [
   {
@@ -34,7 +36,7 @@ export default function Home() {
     <main>
       <div className="announcement">
         <span className="announcement-dot" aria-hidden="true" />
-        Прайс обновлён {priceInfo.updated}
+        Прайс обновлён <LivePriceDate />
         <span className="announcement-divider" aria-hidden="true" />
         Цены и наличие уточняйте у менеджера
       </div>
@@ -85,11 +87,18 @@ export default function Home() {
         <div className="hero-visual" aria-label="Фирменный знак UnB computers">
           <div className="hero-grid" aria-hidden="true" />
           <div className="logo-panel">
-            <img src="/unb-logo.png" alt="Логотип UnB computers" width="633" height="627" />
+            <Image
+              src="/unb-logo.png"
+              alt="Логотип UnB computers"
+              width={633}
+              height={627}
+              sizes="(max-width: 640px) 88vw, 470px"
+              priority
+            />
           </div>
           <div className="availability-card">
             <span className="availability-icon" aria-hidden="true">✓</span>
-            <span><b>Прайс актуален</b><small>{priceInfo.updated}</small></span>
+            <span><b>Прайс актуален</b><small><LivePriceDate /></small></span>
           </div>
           <div className="visual-caption"><span>UNB / 2026</span><span>BISHKEK, KG</span></div>
         </div>
@@ -150,7 +159,7 @@ export default function Home() {
             <div>
               <span className="file-label">ПРАЙС-ЛИСТ</span>
               <h3>UnB computers</h3>
-              <p>Версия {priceInfo.version} · обновлено {priceInfo.updated}</p>
+              <LivePriceFileLine />
             </div>
           </div>
           <div className="file-stats">

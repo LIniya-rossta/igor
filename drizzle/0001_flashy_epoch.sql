@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `pending_uploads_chat_message_unique` ON `pending_uploads` (`chat_id`,`message_id`);

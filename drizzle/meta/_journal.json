@@ -1,5 +1,34 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786039366575,
+      "tag": "0000_true_moira_mactaggert",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786039635803,
+      "tag": "0001_flashy_epoch",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786039719093,
+      "tag": "0002_fancy_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786039868800,
+      "tag": "0003_cold_wendigo",
+      "breakpoints": true
+    }
+  ]
 }
