@@ -2,6 +2,10 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings, claimAttempts, pendingUploads, priceVersions } from "@/db/schema";
 import {
+  issueBrowserUploadSession,
+  revokeIssuedBrowserUploadSession,
+} from "@/lib/browser-upload";
+import {
   formatPriceDate,
   formatPriceVersion,
   getCurrentPriceVersion,
@@ -23,6 +27,7 @@ const CLAIM_WINDOW_MS = 10 * 60 * 1000;
 const CLAIM_BLOCK_MS = 60 * 60 * 1000;
 const CLAIM_ATTEMPT_LIMIT = 5;
 const MAX_WEBHOOK_BYTES = 1024 * 1024;
+const MAX_BROWSER_UPLOAD_BYTES = 1024 * 1024 * 1024;
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 type TelegramDocument = {
@@ -53,7 +58,12 @@ type TelegramUpdate = {
 };
 
 type ReplyMarkup = {
-  inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
+  inline_keyboard: Array<
+    Array<
+      | { text: string; callback_data: string; url?: never }
+      | { text: string; url: string; callback_data?: never }
+    >
+  >;
 };
 
 type TelegramResult<T> = { ok: boolean; result?: T; description?: string };
@@ -205,14 +215,60 @@ function helpText(origin: string) {
   return [
     "UnB Price Manager готов к работе.",
     "",
-    "Просто отправьте сюда файл .xlsx — бот покажет имя и размер, а затем попросит подтверждение публикации.",
+    "Файл .xlsx до 20 МБ можно просто отправить в этот чат — бот покажет имя и размер, а затем попросит подтверждение.",
+    "",
+    "Для файла больше 20 МБ и до 1 ГБ используйте /upload. Личную защищённую загрузку нужно начать за 30 минут; во время передачи файла срок продлевается автоматически.",
     "",
     "/status — текущая версия",
     "/history — история и откат",
+    "/upload — загрузить большой XLSX",
     "/help — эта памятка",
     "",
     `Сайт: ${origin}`,
   ].join("\n");
+}
+
+async function sendBrowserUploadLink(
+  runtimeEnv: RuntimeEnv,
+  chatId: string,
+  requestOrigin: string,
+  filename?: string,
+) {
+  const { id, token } = await issueBrowserUploadSession(chatId);
+  try {
+    const publicOrigin = siteUrl(runtimeEnv, requestOrigin);
+    const uploadUrl = `${publicOrigin}/price-upload#${encodeURIComponent(token)}`;
+    const uploadHostname = new URL(publicOrigin).hostname;
+    const isLocalUrl =
+      uploadHostname === "localhost" ||
+      uploadHostname === "127.0.0.1" ||
+      uploadHostname === "[::1]" ||
+      uploadHostname === "::1";
+
+    await sendMessage(
+      runtimeEnv,
+      chatId,
+      [
+        "Защищённая загрузка готова.",
+        "",
+        ...(filename ? [`Файл: ${filename}`, ""] : []),
+        "Откройте личную ссылку и выберите XLSX-файл размером до 1 ГБ.",
+        "",
+        "Начните загрузку в течение 30 минут. Пока файл передаётся, срок продлевается автоматически. Ссылка предназначена только для вас — не пересылайте её.",
+        ...(isLocalUrl
+          ? ["", "Локальный адрес (откройте на этом компьютере):", uploadUrl]
+          : []),
+      ].join("\n"),
+      isLocalUrl
+        ? undefined
+        : {
+            inline_keyboard: [[{ text: "Открыть загрузку", url: uploadUrl }]],
+          },
+    );
+  } catch (error) {
+    await revokeIssuedBrowserUploadSession(id).catch(() => undefined);
+    throw error;
+  }
 }
 
 async function claimOwner(
@@ -330,7 +386,12 @@ async function showHistory(runtimeEnv: RuntimeEnv, chatId: string) {
   );
 }
 
-async function queueDocument(runtimeEnv: RuntimeEnv, chatId: string, message: TelegramMessage) {
+async function queueDocument(
+  runtimeEnv: RuntimeEnv,
+  chatId: string,
+  message: TelegramMessage,
+  requestOrigin: string,
+) {
   const document = message.document;
   if (!document) return;
 
@@ -340,8 +401,16 @@ async function queueDocument(runtimeEnv: RuntimeEnv, chatId: string, message: Te
     await sendMessage(runtimeEnv, chatId, "Нужен файл Excel с расширением .xlsx.");
     return;
   }
-  if (fileSize <= 0 || fileSize > MAX_XLSX_BYTES) {
-    await sendMessage(runtimeEnv, chatId, "Файл должен быть не пустым и не больше 20 МБ.");
+  if (fileSize <= 0) {
+    await sendMessage(runtimeEnv, chatId, "Файл должен быть не пустым.");
+    return;
+  }
+  if (fileSize > MAX_BROWSER_UPLOAD_BYTES) {
+    await sendMessage(runtimeEnv, chatId, "Максимальный размер XLSX для защищённой загрузки — 1 ГБ.");
+    return;
+  }
+  if (fileSize > MAX_XLSX_BYTES) {
+    await sendBrowserUploadLink(runtimeEnv, chatId, requestOrigin, filename);
     return;
   }
 
@@ -597,7 +666,7 @@ async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, r
   }
 
   if (message.document) {
-    await queueDocument(runtimeEnv, chatId, message);
+    await queueDocument(runtimeEnv, chatId, message, requestOrigin);
     return;
   }
   if (command === "/status") {
@@ -608,12 +677,20 @@ async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, r
     await showHistory(runtimeEnv, chatId);
     return;
   }
+  if (command === "/upload") {
+    await sendBrowserUploadLink(runtimeEnv, chatId, requestOrigin);
+    return;
+  }
   if (command === "/start" || command === "/help") {
     await sendMessage(runtimeEnv, chatId, helpText(siteUrl(runtimeEnv, requestOrigin)));
     return;
   }
 
-  await sendMessage(runtimeEnv, chatId, "Отправьте файл .xlsx или используйте /help.");
+  await sendMessage(
+    runtimeEnv,
+    chatId,
+    "Отправьте файл .xlsx, используйте /upload для большого файла или откройте /help.",
+  );
 }
 
 async function handleCallback(

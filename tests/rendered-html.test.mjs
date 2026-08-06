@@ -74,6 +74,29 @@ function storedZip(entries) {
   return archive;
 }
 
+const linkedWorksheetEntries = [
+  [
+    "[Content_Types].xml",
+    '<Types><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/></Types>',
+  ],
+  [
+    "_rels/.rels",
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+  ],
+  [
+    "xl/workbook.xml",
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Price" r:id="rId1"/></sheets></workbook>',
+  ],
+  [
+    "xl/_rels/workbook.xml.rels",
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+  ],
+  [
+    "xl/worksheets/sheet1.xml",
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>',
+  ],
+];
+
 async function renderHome() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -114,6 +137,27 @@ test("accepts a real XLSX and rejects lookalike files", async () => {
   );
 
   assert.equal(await isValidXlsxBytes(workbook), true);
+  assert.equal(await isValidXlsxBytes(storedZip(linkedWorksheetEntries)), true);
+  assert.equal(
+    await isValidXlsxBytes(
+      storedZip(
+        linkedWorksheetEntries.filter(
+          ([name]) => name !== "xl/_rels/workbook.xml.rels",
+        ),
+      ),
+    ),
+    false,
+  );
+  assert.equal(
+    await isValidXlsxBytes(
+      storedZip(
+        linkedWorksheetEntries.filter(
+          ([name]) => name !== "xl/worksheets/sheet1.xml",
+        ),
+      ),
+    ),
+    false,
+  );
   assert.equal(await isValidXlsxBytes(new Uint8Array([0x50, 0x4b, 0x03, 0x04])), false);
   assert.equal(
     await isValidXlsxBytes(new TextEncoder().encode("PK\u0003\u0004xl/workbook.xml")),

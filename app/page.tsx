@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { priceInfo } from "./price-config";
 import { LivePriceDate, LivePriceFileLine } from "./live-price";
 
@@ -87,13 +86,13 @@ export default function Home() {
         <div className="hero-visual" aria-label="Фирменный знак UnB computers">
           <div className="hero-grid" aria-hidden="true" />
           <div className="logo-panel">
-            <Image
+            {/* vinext currently renders next/image with a duplicate React hook context in dev. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/unb-logo.png"
               alt="Логотип UnB computers"
-              width={633}
-              height={627}
-              sizes="(max-width: 640px) 88vw, 470px"
-              priority
+              width="633"
+              height="627"
             />
           </div>
           <div className="availability-card">

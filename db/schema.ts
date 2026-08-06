@@ -1,4 +1,12 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const appSettings = sqliteTable("app_settings", {
   key: text("key").primaryKey(),
@@ -50,5 +58,35 @@ export const priceVersions = sqliteTable(
   (table) => [
     index("price_versions_is_current_idx").on(table.isCurrent),
     index("price_versions_uploaded_at_idx").on(table.uploadedAt),
+  ],
+);
+
+export const browserUploadSessions = sqliteTable(
+  "browser_upload_sessions",
+  {
+    id: text("id").primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    chatId: text("chat_id").notNull(),
+    status: text("status").notNull(),
+    objectKey: text("object_key").notNull(),
+    uploadId: text("upload_id"),
+    originalName: text("original_name"),
+    fileSize: integer("file_size"),
+    partSize: integer("part_size").notNull(),
+    operationNonce: text("operation_nonce"),
+    createdAt: integer("created_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    publishedAt: integer("published_at"),
+  },
+  (table) => [
+    uniqueIndex("browser_upload_sessions_token_hash_unique").on(table.tokenHash),
+    uniqueIndex("browser_upload_sessions_object_key_unique").on(table.objectKey),
+    index("browser_upload_sessions_expires_at_idx").on(table.expiresAt),
+    index("browser_upload_sessions_chat_status_idx").on(table.chatId, table.status),
+    check(
+      "browser_upload_sessions_status_check",
+      sql`${table.status} in ('issued', 'uploading', 'validating', 'published', 'failed', 'cancelled')`,
+    ),
   ],
 );

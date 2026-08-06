@@ -1,0 +1,7 @@
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=
+TELEGRAM_CLAIM_CODE=
+PUBLIC_SITE_URL=http://localhost:3000
+LOCAL_WEBHOOK_URL=http://localhost:3000/api/telegram/webhook
+# Set to 1 only when local polling may intentionally disable an existing webhook.
+LOCAL_BOT_TAKEOVER=0
