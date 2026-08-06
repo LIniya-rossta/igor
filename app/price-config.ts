@@ -1,0 +1,7 @@
+export const priceInfo = {
+  updated: "6 августа 2026",
+  version: "06.08.26",
+  format: "XLSX",
+  updateFrequency: "ежедневно",
+  downloadUrl: "/price.xlsx",
+} as const;
