@@ -1,7 +1,8 @@
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { browserUploadSessions } from "@/db/schema";
 import type { RuntimeEnv } from "@/lib/runtime-env";
+import { telegramMethodUrl } from "@/lib/telegram-api";
 
 export const BROWSER_UPLOAD_PART_SIZE = 8 * 1024 * 1024;
 export const BROWSER_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024;
@@ -30,14 +31,24 @@ export type BrowserUploadSession = Omit<
 > & { status: BrowserUploadStatus };
 
 export class UploadHttpError extends Error {
+  public readonly status: number;
+  public readonly code: string;
+
   constructor(
-    public readonly status: number,
-    public readonly code: string,
+    status: number,
+    code: string,
     message: string,
   ) {
     super(message);
+    this.status = status;
+    this.code = code;
   }
 }
+
+type BrowserUploadSource = {
+  pendingId: string;
+  fileUniqueId: string;
+};
 
 function randomToken(byteLength = 32) {
   const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
@@ -124,16 +135,35 @@ export async function readSmallJson<T>(request: Request, maxBytes = 8 * 1024) {
   }
 }
 
-export async function issueBrowserUploadSession(chatId: string) {
+export async function issueBrowserUploadSession(
+  chatId: string,
+  initialTtlMs = BROWSER_UPLOAD_IDLE_TTL_MS,
+  source?: BrowserUploadSource,
+) {
   if (!/^[-0-9]{1,32}$/.test(chatId)) {
     throw new Error("Invalid Telegram chat id");
+  }
+  if (!Number.isSafeInteger(initialTtlMs) || initialTtlMs <= 0) {
+    throw new Error("Invalid upload session lifetime");
+  }
+  if (
+    source &&
+    (!/^[0-9a-f-]{36}$/i.test(source.pendingId) ||
+      source.fileUniqueId.length < 1 ||
+      source.fileUniqueId.length > 256 ||
+      [...source.fileUniqueId].some((character) => {
+        const codePoint = character.codePointAt(0) ?? 0;
+        return codePoint <= 0x1f || codePoint === 0x7f;
+      }))
+  ) {
+    throw new Error("Invalid Telegram upload source");
   }
 
   const id = crypto.randomUUID();
   const token = randomToken();
   const tokenHash = await sha256Hex(token);
   const now = Date.now();
-  const expiresAt = now + BROWSER_UPLOAD_IDLE_TTL_MS;
+  const expiresAt = now + Math.min(initialTtlMs, BROWSER_UPLOAD_ABSOLUTE_LIFETIME_MS);
   const objectKey = `price/versions/${id}.excel`;
 
   await getDb().insert(browserUploadSessions).values({
@@ -146,6 +176,8 @@ export async function issueBrowserUploadSession(chatId: string) {
     originalName: null,
     fileSize: null,
     partSize: BROWSER_UPLOAD_PART_SIZE,
+    sourcePendingId: source?.pendingId ?? null,
+    sourceFileUniqueId: source?.fileUniqueId ?? null,
     operationNonce: null,
     createdAt: now,
     expiresAt,
@@ -195,6 +227,71 @@ export async function getBrowserUploadSession(id: string) {
     .select()
     .from(browserUploadSessions)
     .where(eq(browserUploadSessions.id, id))
+    .limit(1);
+  return (session as BrowserUploadSession | undefined) ?? null;
+}
+
+export async function resetBrowserUploadSessionsForSource(
+  runtimeEnv: RuntimeEnv,
+  sourcePendingId: string,
+) {
+  const sessions = (await getDb()
+    .select()
+    .from(browserUploadSessions)
+    .where(eq(browserUploadSessions.sourcePendingId, sourcePendingId))) as BrowserUploadSession[];
+
+  for (const session of sessions) {
+    if (session.status === "cancelled") {
+      await cleanupCancelledSession(runtimeEnv, session);
+    } else if (session.status !== "published") {
+      await cancelSession(runtimeEnv, session);
+    }
+  }
+
+  const [published] = await getDb()
+    .select()
+    .from(browserUploadSessions)
+    .where(
+      and(
+        eq(browserUploadSessions.sourcePendingId, sourcePendingId),
+        eq(browserUploadSessions.status, "published"),
+      ),
+    )
+    .limit(1);
+  if (published) return published as BrowserUploadSession;
+
+  const [cleanupPending] = await getDb()
+    .select({ id: browserUploadSessions.id })
+    .from(browserUploadSessions)
+    .where(
+      and(
+        eq(browserUploadSessions.sourcePendingId, sourcePendingId),
+        ne(browserUploadSessions.status, "published"),
+      ),
+    )
+    .limit(1);
+  if (cleanupPending) {
+    throw new UploadHttpError(
+      503,
+      "cleanup_pending",
+      "Предыдущая загрузка ещё очищается. Повторите через несколько секунд.",
+    );
+  }
+  return null;
+}
+
+export async function getPublishedBrowserUploadSessionForSource(
+  sourcePendingId: string,
+) {
+  const [session] = await getDb()
+    .select()
+    .from(browserUploadSessions)
+    .where(
+      and(
+        eq(browserUploadSessions.sourcePendingId, sourcePendingId),
+        eq(browserUploadSessions.status, "published"),
+      ),
+    )
     .limit(1);
   return (session as BrowserUploadSession | undefined) ?? null;
 }
@@ -263,12 +360,77 @@ export async function touchUploadingSession(
   return touched?.expires_at ?? null;
 }
 
+type CancelledCleanupTarget = Pick<
+  BrowserUploadSession,
+  "id" | "objectKey" | "uploadId"
+>;
+
+function missingMultipartUpload(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as {
+    status?: unknown;
+    code?: unknown;
+    message?: unknown;
+  };
+  if (
+    candidate.status === 404 ||
+    candidate.code === 10024 ||
+    candidate.code === "10024"
+  ) {
+    return true;
+  }
+  return (
+    typeof candidate.message === "string" &&
+    /(?:not found|does not exist|already (?:aborted|completed))/i.test(
+      candidate.message,
+    )
+  );
+}
+
+async function cleanupCancelledSession(
+  runtimeEnv: RuntimeEnv,
+  session: CancelledCleanupTarget,
+) {
+  if (session.uploadId) {
+    try {
+      await runtimeEnv.PRICE_FILES.resumeMultipartUpload(
+        session.objectKey,
+        session.uploadId,
+      ).abort();
+    } catch (error) {
+      if (!missingMultipartUpload(error)) return false;
+    }
+  }
+
+  try {
+    await runtimeEnv.PRICE_FILES.delete(session.objectKey);
+  } catch {
+    return false;
+  }
+
+  const deleted = await runtimeEnv.DB.prepare(
+    `DELETE FROM browser_upload_sessions
+     WHERE id = ? AND status = 'cancelled' AND object_key = ?
+       AND upload_id IS ?`,
+  )
+    .bind(session.id, session.objectKey, session.uploadId)
+    .run();
+  if ((deleted.meta.changes ?? 0) === 1) return true;
+
+  const remaining = await runtimeEnv.DB.prepare(
+    `SELECT id FROM browser_upload_sessions WHERE id = ? LIMIT 1`,
+  )
+    .bind(session.id)
+    .first<{ id: string }>();
+  return !remaining;
+}
+
 export async function cancelSession(
   runtimeEnv: RuntimeEnv,
   session: BrowserUploadSession,
 ) {
   const now = Date.now();
-  const result = await runtimeEnv.DB.prepare(
+  let result = await runtimeEnv.DB.prepare(
     `UPDATE browser_upload_sessions
      SET status = 'cancelled', operation_nonce = NULL, updated_at = ?
      WHERE id = ? AND token_hash = ?
@@ -278,25 +440,31 @@ export async function cancelSession(
     .bind(now, session.id, session.tokenHash)
     .first<{ id: string; object_key: string; upload_id: string | null }>();
 
-  if (!result) return false;
-  const cleanup: Promise<unknown>[] = [runtimeEnv.PRICE_FILES.delete(result.object_key)];
-  if (result.upload_id) {
-    cleanup.push(
-      runtimeEnv.PRICE_FILES.resumeMultipartUpload(
-        result.object_key,
-        result.upload_id,
-      ).abort(),
-    );
+  if (!result) {
+    result = await runtimeEnv.DB.prepare(
+      `SELECT id, object_key, upload_id
+       FROM browser_upload_sessions
+       WHERE id = ? AND token_hash = ? AND status = 'cancelled'
+       LIMIT 1`,
+    )
+      .bind(session.id, session.tokenHash)
+      .first<{ id: string; object_key: string; upload_id: string | null }>();
   }
-  await Promise.allSettled(cleanup);
-  return true;
+  if (!result) return false;
+
+  return cleanupCancelledSession(runtimeEnv, {
+    id: result.id,
+    objectKey: result.object_key,
+    uploadId: result.upload_id,
+  });
 }
 
 export async function cancelExpiredSession(
   runtimeEnv: RuntimeEnv,
   session: BrowserUploadSession,
 ) {
-  if (session.status === "published" || session.status === "cancelled") return false;
+  if (session.status === "published") return false;
+  if (session.status === "cancelled") return cancelSession(runtimeEnv, session);
   if (session.expiresAt > Date.now()) return false;
   return cancelSession(runtimeEnv, session);
 }
@@ -380,6 +548,15 @@ export async function failValidation(
     .first<{ id: string }>();
   if (!failed) return false;
 
+  if (session.sourcePendingId && session.sourceFileUniqueId) {
+    await runtimeEnv.DB.prepare(
+      `DELETE FROM pending_uploads
+       WHERE id = ? AND chat_id = ? AND file_unique_id = ?`,
+    )
+      .bind(session.sourcePendingId, session.chatId, session.sourceFileUniqueId)
+      .run();
+  }
+
   const cleanup: Promise<unknown>[] = [runtimeEnv.PRICE_FILES.delete(session.objectKey)];
   if (session.uploadId) {
     cleanup.push(
@@ -416,11 +593,34 @@ export async function publishValidatedSession(
   uploadedAt: number,
 ) {
   if (!session.originalName || !session.fileSize) return false;
-  const telegramFileUniqueId = `web:${session.id}`;
+  if (Boolean(session.sourcePendingId) !== Boolean(session.sourceFileUniqueId)) {
+    return false;
+  }
+  const telegramFileUniqueId = session.sourceFileUniqueId ?? `web:${session.id}`;
   const guard = `EXISTS (
     SELECT 1 FROM browser_upload_sessions
     WHERE id = ? AND status = 'validating' AND operation_nonce = ?
   )`;
+  const versionGuard = `EXISTS (
+    SELECT 1 FROM price_versions
+    WHERE id = ? AND telegram_file_unique_id = ?
+  )`;
+  const sourceGuard = session.sourcePendingId
+    ? `AND EXISTS (
+         SELECT 1 FROM pending_uploads
+         WHERE id = ? AND chat_id = ? AND file_unique_id = ?
+           AND original_name = ? AND file_size = ?
+       )`
+    : "";
+  const sourceBindings = session.sourcePendingId
+    ? [
+        session.sourcePendingId,
+        session.chatId,
+        session.sourceFileUniqueId,
+        session.originalName,
+        session.fileSize,
+      ]
+    : [];
 
   const results = await runtimeEnv.DB.batch([
     runtimeEnv.DB.prepare(
@@ -428,7 +628,7 @@ export async function publishValidatedSession(
          (id, object_key, original_name, file_size, uploaded_at, uploaded_by,
           telegram_file_unique_id, is_current)
        SELECT ?, ?, ?, ?, ?, ?, ?, 0
-       WHERE ${guard}
+       WHERE ${guard} ${sourceGuard}
        ON CONFLICT(telegram_file_unique_id) DO NOTHING`,
     ).bind(
       session.id,
@@ -440,23 +640,87 @@ export async function publishValidatedSession(
       telegramFileUniqueId,
       session.id,
       operationNonce,
+      ...sourceBindings,
     ),
     runtimeEnv.DB.prepare(
       `UPDATE price_versions SET is_current = 0
-       WHERE is_current = 1 AND ${guard}`,
-    ).bind(session.id, operationNonce),
+       WHERE is_current = 1 AND ${versionGuard} AND ${guard}`,
+    ).bind(
+      session.id,
+      telegramFileUniqueId,
+      session.id,
+      operationNonce,
+    ),
     runtimeEnv.DB.prepare(
       `UPDATE price_versions SET is_current = 1
        WHERE id = ? AND telegram_file_unique_id = ? AND ${guard}`,
     ).bind(session.id, telegramFileUniqueId, session.id, operationNonce),
     runtimeEnv.DB.prepare(
+      `DELETE FROM pending_uploads
+       WHERE id = ? AND chat_id = ? AND file_unique_id = ?
+         AND ${versionGuard} AND ${guard}`,
+    ).bind(
+      session.sourcePendingId,
+      session.chatId,
+      session.sourceFileUniqueId,
+      session.id,
+      telegramFileUniqueId,
+      session.id,
+      operationNonce,
+    ),
+    runtimeEnv.DB.prepare(
       `UPDATE browser_upload_sessions
        SET status = 'published', published_at = ?, operation_nonce = NULL, updated_at = ?
-       WHERE id = ? AND status = 'validating' AND operation_nonce = ?`,
-    ).bind(uploadedAt, uploadedAt, session.id, operationNonce),
+       WHERE id = ? AND status = 'validating' AND operation_nonce = ?
+         AND ${versionGuard}`,
+    ).bind(
+      uploadedAt,
+      uploadedAt,
+      session.id,
+      operationNonce,
+      session.id,
+      telegramFileUniqueId,
+    ),
+    runtimeEnv.DB.prepare(
+      `UPDATE browser_upload_sessions
+       SET status = 'cancelled', operation_nonce = NULL, updated_at = ?
+       WHERE id = ? AND token_hash = ?
+         AND status = 'validating' AND operation_nonce = ?
+         AND source_pending_id = ? AND source_file_unique_id = ?
+         AND ? IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM pending_uploads
+           WHERE id = ? AND chat_id = ? AND file_unique_id = ?
+             AND original_name = ? AND file_size = ?
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM price_versions
+           WHERE id = ? AND telegram_file_unique_id = ?
+         )
+       RETURNING id`,
+    ).bind(
+      uploadedAt,
+      session.id,
+      session.tokenHash,
+      operationNonce,
+      session.sourcePendingId,
+      session.sourceFileUniqueId,
+      session.sourcePendingId,
+      session.sourcePendingId,
+      session.chatId,
+      session.sourceFileUniqueId,
+      session.originalName,
+      session.fileSize,
+      session.id,
+      telegramFileUniqueId,
+    ),
   ]);
 
-  return (results[3]?.meta.changes ?? 0) === 1;
+  const published = (results[4]?.meta.changes ?? 0) === 1;
+  if (!published && (results[5]?.meta.changes ?? 0) === 1) {
+    await cancelSession(runtimeEnv, session);
+  }
+  return published;
 }
 
 export async function tryNotifyTelegram(
@@ -467,7 +731,7 @@ export async function tryNotifyTelegram(
   if (!runtimeEnv.TELEGRAM_BOT_TOKEN) return;
   try {
     await fetch(
-      `https://api.telegram.org/bot${runtimeEnv.TELEGRAM_BOT_TOKEN}/sendMessage`,
+      telegramMethodUrl(runtimeEnv, "sendMessage"),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

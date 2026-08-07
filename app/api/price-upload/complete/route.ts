@@ -2,6 +2,7 @@ import {
   assertSameOrigin,
   authenticateBrowserUpload,
   cancelExpiredSession,
+  cancelSession,
   claimValidationLease,
   errorResponse,
   failValidation,
@@ -110,6 +111,17 @@ export async function POST(request: Request) {
     if (session.status === "published") {
       return jsonNoStore(completedPayload(session));
     }
+    if (session.status === "cancelled") {
+      const cleaned = await cancelSession(runtimeEnv, session);
+      if (!cleaned) {
+        throw new UploadHttpError(
+          503,
+          "cleanup_pending",
+          "Отмена сохранена, но очистка ещё не завершена. Повторите запрос.",
+        );
+      }
+      throw new UploadHttpError(410, "cancelled", "Загрузка была отменена.");
+    }
     if (session.expiresAt <= Date.now()) {
       await cancelExpiredSession(runtimeEnv, session);
       throw new UploadHttpError(410, "expired", "Срок действия ссылки истёк.");
@@ -185,9 +197,24 @@ export async function POST(request: Request) {
         operationNonce = null;
         return jsonNoStore(completedPayload(current));
       }
-      if (current?.status === "cancelled" || current?.status === "failed") {
+      if (!current) {
         operationNonce = null;
-        await runtimeEnv.PRICE_FILES.delete(leasedSession.objectKey).catch(() => undefined);
+        throw new UploadHttpError(410, "cancelled", "Загрузка была отменена.");
+      }
+      if (current.status === "cancelled") {
+        operationNonce = null;
+        const cleaned = await cancelSession(runtimeEnv, current);
+        if (!cleaned) {
+          throw new UploadHttpError(
+            503,
+            "cleanup_pending",
+            "Отмена сохранена, но очистка ещё не завершена. Повторите запрос.",
+          );
+        }
+        throw new UploadHttpError(410, "cancelled", "Загрузка была отменена.");
+      }
+      if (current.status === "failed") {
+        operationNonce = null;
       }
       throw new UploadHttpError(
         409,
@@ -233,7 +260,9 @@ export async function POST(request: Request) {
             await tryNotifyTelegram(
               runtimeEnv,
               leasedSession.chatId,
-              `Файл «${leasedSession.originalName ?? "price.xlsx"}» отклонён: ${reason}. Запросите новую ссылку и загрузите файл ещё раз.`,
+              leasedSession.sourcePendingId
+                ? `Файл «${leasedSession.originalName ?? "price.xlsx"}» отклонён: ${reason}. Исправьте файл и отправьте его боту ещё раз.`
+                : `Файл «${leasedSession.originalName ?? "price.xlsx"}» отклонён: ${reason}. Запросите новую ссылку и загрузите файл ещё раз.`,
             );
           }
         } else {

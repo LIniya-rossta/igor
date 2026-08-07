@@ -17,9 +17,6 @@ export async function DELETE(request: Request) {
     const runtimeEnv = getRuntimeEnv();
     const session = await authenticateBrowserUpload(request);
 
-    if (session.status === "cancelled") {
-      return jsonNoStore({ ok: true, id: session.id, status: "cancelled" });
-    }
     if (session.status === "published") {
       throw new UploadHttpError(
         409,
@@ -34,8 +31,15 @@ export async function DELETE(request: Request) {
     }
 
     const current = await getBrowserUploadSession(session.id);
-    if (current?.status === "cancelled") {
+    if (!current) {
       return jsonNoStore({ ok: true, id: session.id, status: "cancelled" });
+    }
+    if (current.status === "cancelled") {
+      throw new UploadHttpError(
+        503,
+        "cleanup_pending",
+        "Отмена сохранена, но очистка ещё не завершена. Повторите запрос.",
+      );
     }
     throw new UploadHttpError(
       409,

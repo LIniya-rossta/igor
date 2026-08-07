@@ -299,8 +299,24 @@ export default function PriceUploadPage() {
     if (currentToken) {
       try {
         await apiRequest("/api/price-upload/cancel", currentToken, { method: "DELETE" });
-      } catch {
-        // The local UI can reset even if cleanup is already complete or the link expired.
+      } catch (cancelError) {
+        const retryable =
+          !(cancelError instanceof UploadRequestError) ||
+          cancelError.status === 0 ||
+          cancelError.status === 429 ||
+          cancelError.status >= 500;
+        if (retryable) {
+          setSelectedFile(null);
+          setProgress(0);
+          setPhase("error");
+          setCanRetry(true);
+          setRetryLabel("Повторить отмену");
+          setError(
+            "Не удалось подтвердить очистку файла. Ключ сохранён — повторите отмену.",
+          );
+          setStatus("Очистка загрузки ещё не завершена");
+          return;
+        }
       }
     }
 
@@ -444,7 +460,13 @@ export default function PriceUploadPage() {
                     </button>
                   ) : phase === "error" && canRetry ? (
                     <>
-                      <button type="button" className={styles.primaryButton} onClick={() => void continueUpload()}>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() =>
+                          void (contextRef.current ? continueUpload() : cancelUpload())
+                        }
+                      >
                         {retryLabel} <span aria-hidden="true">↻</span>
                       </button>
                       <button type="button" className={styles.secondaryButton} onClick={() => void cancelUpload()}>

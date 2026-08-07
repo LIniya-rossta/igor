@@ -2,7 +2,10 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings, claimAttempts, pendingUploads, priceVersions } from "@/db/schema";
 import {
+  BROWSER_UPLOAD_ABSOLUTE_LIFETIME_MS,
+  getPublishedBrowserUploadSessionForSource,
   issueBrowserUploadSession,
+  resetBrowserUploadSessionsForSource,
   revokeIssuedBrowserUploadSession,
 } from "@/lib/browser-upload";
 import {
@@ -22,6 +25,7 @@ import {
   getRecentPriceVersions,
 } from "@/lib/price";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
+import { telegramMethodUrl } from "@/lib/telegram-api";
 import {
   formatFileSize,
 } from "@/lib/xlsx";
@@ -63,6 +67,14 @@ type TelegramUpdate = {
   callback_query?: TelegramCallback;
 };
 
+type LocalUploadInstruction = {
+  chatId: string;
+  fileId: string;
+  filename: string;
+  fileSize: number;
+  uploadToken: string;
+};
+
 type ReplyMarkup = {
   inline_keyboard: Array<
     Array<
@@ -93,7 +105,7 @@ async function telegramRequest<T>(
   const token = runtimeEnv.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("Telegram bot is not configured");
 
-  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+  const response = await fetch(telegramMethodUrl(runtimeEnv, method), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -217,17 +229,23 @@ function siteUrl(runtimeEnv: RuntimeEnv, requestOrigin: string) {
   return (runtimeEnv.PUBLIC_SITE_URL || requestOrigin).replace(/\/$/, "");
 }
 
-function helpText(origin: string) {
+function helpText(origin: string, directUploadEnabled = false) {
   return [
     "UnB Price Manager готов к работе.",
     "",
-    "Файл .xls или .xlsx до 20 МБ можно просто отправить в этот чат — бот покажет имя и размер, а затем попросит подтверждение.",
+    directUploadEnabled
+      ? "Просто отправьте в этот чат файл .xls или .xlsx размером до 1 ГБ — бот покажет имя и размер, а затем попросит подтверждение."
+      : "Файл .xls или .xlsx до 20 МБ можно просто отправить в этот чат — бот покажет имя и размер, а затем попросит подтверждение.",
     "",
-    "Для файла больше 20 МБ и до 1 ГБ используйте /upload. Личную защищённую загрузку нужно начать за 30 минут; во время передачи файла срок продлевается автоматически.",
+    directUploadEnabled
+      ? "После подтверждения бот сам скачает, проверит и опубликует прайс. Открывать ссылку на localhost не нужно."
+      : "Для файла больше 20 МБ и до 1 ГБ используйте /upload. Личную защищённую загрузку нужно начать за 30 минут; во время передачи файла срок продлевается автоматически.",
     "",
     "/status — текущая версия",
     "/history — история и откат",
-    "/upload — загрузить большой Excel-прайс",
+    directUploadEnabled
+      ? "/upload — подсказка по отправке Excel-прайса"
+      : "/upload — загрузить большой Excel-прайс",
     "/help — эта памятка",
     "",
     `Сайт: ${origin}`,
@@ -282,6 +300,7 @@ async function claimOwner(
   chatId: string,
   suppliedCode: string,
   requestOrigin: string,
+  directUploadEnabled: boolean,
 ) {
   const existingOwner = await getOwnerChatId();
   if (existingOwner) {
@@ -328,7 +347,7 @@ async function claimOwner(
   await trySendMessage(
     runtimeEnv,
     chatId,
-    `Готово — этот чат теперь управляет прайсом.\n\n${helpText(siteUrl(runtimeEnv, requestOrigin))}`,
+    `Готово — этот чат теперь управляет прайсом.\n\n${helpText(siteUrl(runtimeEnv, requestOrigin), directUploadEnabled)}`,
   );
 }
 
@@ -397,6 +416,7 @@ async function queueDocument(
   chatId: string,
   message: TelegramMessage,
   requestOrigin: string,
+  directUploadEnabled: boolean,
 ) {
   const document = message.document;
   if (!document) return;
@@ -416,7 +436,7 @@ async function queueDocument(
     await sendMessage(runtimeEnv, chatId, "Максимальный размер Excel-файла для защищённой загрузки — 1 ГБ.");
     return;
   }
-  if (fileSize > MAX_TELEGRAM_EXCEL_BYTES) {
+  if (fileSize > MAX_TELEGRAM_EXCEL_BYTES && !directUploadEnabled) {
     await sendBrowserUploadLink(runtimeEnv, chatId, requestOrigin, filename);
     return;
   }
@@ -511,12 +531,21 @@ async function downloadTelegramFile(runtimeEnv: RuntimeEnv, telegramFileId: stri
   return bytes;
 }
 
+async function cleanupUnpublishedTelegramObject(
+  runtimeEnv: RuntimeEnv,
+  pendingId: string,
+) {
+  await runtimeEnv.PRICE_FILES.delete(`price/versions/${pendingId}.xls`);
+  await runtimeEnv.PRICE_FILES.delete(`price/versions/${pendingId}.xlsx`);
+}
+
 async function publishPending(
   runtimeEnv: RuntimeEnv,
   callback: TelegramCallback,
   pendingId: string,
   chatId: string,
   requestOrigin: string,
+  directUploadEnabled: boolean,
 ) {
   const db = getDb();
   const [pending] = await db
@@ -526,11 +555,22 @@ async function publishPending(
     .limit(1);
 
   if (!pending) {
-    const [published] = await db
+    let [published] = await db
       .select()
       .from(priceVersions)
       .where(eq(priceVersions.id, pendingId))
       .limit(1);
+    if (!published) {
+      const sourceSession =
+        await getPublishedBrowserUploadSessionForSource(pendingId);
+      if (sourceSession) {
+        [published] = await db
+          .select()
+          .from(priceVersions)
+          .where(eq(priceVersions.id, sourceSession.id))
+          .limit(1);
+      }
+    }
     if (published) {
       await tryEditCallbackMessage(
         runtimeEnv,
@@ -546,6 +586,7 @@ async function publishPending(
       );
       return;
     }
+    await cleanupUnpublishedTelegramObject(runtimeEnv, pendingId);
     await tryEditCallbackMessage(runtimeEnv, callback, "Срок подтверждения истёк. Отправьте файл ещё раз.");
     return;
   }
@@ -571,6 +612,72 @@ async function publishPending(
     return;
   }
 
+  if (directUploadEnabled) {
+    const [extendedPending] = await db
+      .update(pendingUploads)
+      .set({ expiresAt: Date.now() + BROWSER_UPLOAD_ABSOLUTE_LIFETIME_MS })
+      .where(
+        and(
+          eq(pendingUploads.id, pending.id),
+          eq(pendingUploads.chatId, chatId),
+          eq(pendingUploads.fileUniqueId, pending.fileUniqueId),
+        ),
+      )
+      .returning({ id: pendingUploads.id });
+    if (!extendedPending) return;
+
+    const alreadyPublished = await resetBrowserUploadSessionsForSource(
+      runtimeEnv,
+      pending.id,
+    );
+    if (alreadyPublished) {
+      await tryEditCallbackMessage(
+        runtimeEnv,
+        callback,
+        `Этот файл уже опубликован.\n\n${siteUrl(runtimeEnv, requestOrigin)}/api/price/download`,
+      );
+      return;
+    }
+    const issued = await issueBrowserUploadSession(
+      chatId,
+      BROWSER_UPLOAD_ABSOLUTE_LIFETIME_MS,
+      { pendingId: pending.id, fileUniqueId: pending.fileUniqueId },
+    );
+
+    try {
+      await tryEditCallbackMessage(
+        runtimeEnv,
+        callback,
+        [
+          "Файл подтверждён — бот загружает и проверяет его.",
+          `Файл: ${pending.originalName}`,
+          `Размер: ${formatFileSize(pending.fileSize)}`,
+          "",
+          "Для большого прайса это может занять несколько минут. Если передача прервётся, нажмите «Повторить».",
+        ].join("\n"),
+        {
+          inline_keyboard: [
+            [
+              { text: "Повторить", callback_data: `publish:${pending.id}` },
+              { text: "Отмена", callback_data: `cancel:${pending.id}` },
+            ],
+          ],
+        },
+      );
+
+      return {
+        chatId,
+        fileId: pending.telegramFileId,
+        filename: pending.originalName,
+        fileSize: pending.fileSize,
+        uploadToken: issued.token,
+      } satisfies LocalUploadInstruction;
+    } catch (error) {
+      await revokeIssuedBrowserUploadSession(issued.id).catch(() => undefined);
+      throw error;
+    }
+  }
+
   const bytes = await downloadTelegramFile(runtimeEnv, pending.telegramFileId);
   if (!(await isValidExcelBytes(bytes, pending.originalName))) {
     await db.delete(pendingUploads).where(eq(pendingUploads.id, pending.id));
@@ -591,20 +698,90 @@ async function publishPending(
     httpMetadata: { contentType: excelMimeType(pending.originalName) },
   });
 
-  await db.batch([
-    db.update(priceVersions).set({ isCurrent: false }),
-    db.insert(priceVersions).values({
-      id: versionId,
-      objectKey,
-      originalName: pending.originalName,
-      fileSize: bytes.byteLength,
-      uploadedAt: now,
-      uploadedBy: chatId,
-      telegramFileUniqueId: pending.fileUniqueId,
-      isCurrent: true,
-    }),
-    db.delete(pendingUploads).where(eq(pendingUploads.id, pending.id)),
-  ]);
+  try {
+    await runtimeEnv.DB.batch([
+      runtimeEnv.DB.prepare(
+        `INSERT INTO price_versions
+           (id, object_key, original_name, file_size, uploaded_at, uploaded_by,
+            telegram_file_unique_id, is_current)
+         SELECT ?, ?, ?, ?, ?, ?, ?, 0
+         WHERE EXISTS (
+           SELECT 1 FROM pending_uploads
+           WHERE id = ? AND chat_id = ? AND file_unique_id = ?
+             AND original_name = ? AND file_size = ?
+         )
+         ON CONFLICT(telegram_file_unique_id) DO NOTHING`,
+      ).bind(
+        versionId,
+        objectKey,
+        pending.originalName,
+        bytes.byteLength,
+        now,
+        chatId,
+        pending.fileUniqueId,
+        pending.id,
+        chatId,
+        pending.fileUniqueId,
+        pending.originalName,
+        pending.fileSize,
+      ),
+      runtimeEnv.DB.prepare(
+        `UPDATE price_versions SET is_current = 0
+         WHERE is_current = 1 AND EXISTS (
+           SELECT 1 FROM price_versions
+           WHERE id = ? AND telegram_file_unique_id = ?
+         )`,
+      ).bind(versionId, pending.fileUniqueId),
+      runtimeEnv.DB.prepare(
+        `UPDATE price_versions SET is_current = 1
+         WHERE id = ? AND telegram_file_unique_id = ?`,
+      ).bind(versionId, pending.fileUniqueId),
+      runtimeEnv.DB.prepare(
+        `DELETE FROM pending_uploads
+         WHERE id = ? AND chat_id = ? AND file_unique_id = ?
+           AND EXISTS (
+             SELECT 1 FROM price_versions
+             WHERE id = ? AND telegram_file_unique_id = ?
+           )`,
+      ).bind(
+        pending.id,
+        chatId,
+        pending.fileUniqueId,
+        versionId,
+        pending.fileUniqueId,
+      ),
+    ]);
+  } catch (error) {
+    const [committed] = await db
+      .select({ id: priceVersions.id })
+      .from(priceVersions)
+      .where(
+        and(
+          eq(priceVersions.id, versionId),
+          eq(priceVersions.telegramFileUniqueId, pending.fileUniqueId),
+        ),
+      )
+      .limit(1);
+    if (!committed) {
+      await cleanupUnpublishedTelegramObject(runtimeEnv, versionId);
+      throw error;
+    }
+  }
+
+  const [publishedVersion] = await db
+    .select({ uploadedAt: priceVersions.uploadedAt })
+    .from(priceVersions)
+    .where(
+      and(
+        eq(priceVersions.id, versionId),
+        eq(priceVersions.telegramFileUniqueId, pending.fileUniqueId),
+      ),
+    )
+    .limit(1);
+  if (!publishedVersion) {
+    await cleanupUnpublishedTelegramObject(runtimeEnv, versionId);
+    return;
+  }
 
   await tryEditCallbackMessage(
     runtimeEnv,
@@ -612,8 +789,8 @@ async function publishPending(
     [
       "Готово — прайс опубликован.",
       `Файл: ${pending.originalName}`,
-      `Версия: ${formatPriceVersion(now)}`,
-      `Дата на сайте: ${formatPriceDate(now)}`,
+      `Версия: ${formatPriceVersion(publishedVersion.uploadedAt)}`,
+      `Дата на сайте: ${formatPriceDate(publishedVersion.uploadedAt)}`,
       "",
       `${siteUrl(runtimeEnv, requestOrigin)}/api/price/download`,
     ].join("\n"),
@@ -653,7 +830,12 @@ async function rollbackVersion(
   );
 }
 
-async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, requestOrigin: string) {
+async function handleMessage(
+  runtimeEnv: RuntimeEnv,
+  message: TelegramMessage,
+  requestOrigin: string,
+  directUploadEnabled: boolean,
+) {
   const chatId = String(message.chat.id);
   if (message.chat.type !== "private") {
     await trySendMessage(runtimeEnv, chatId, "Управление прайсом доступно только в личном чате с ботом.");
@@ -664,7 +846,13 @@ async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, r
   const [rawCommand = "", commandArgument = ""] = text.split(/\s+/, 2);
   const command = rawCommand.split("@", 1)[0].toLowerCase();
   if (command === "/claim") {
-    await claimOwner(runtimeEnv, chatId, commandArgument, requestOrigin);
+    await claimOwner(
+      runtimeEnv,
+      chatId,
+      commandArgument,
+      requestOrigin,
+      directUploadEnabled,
+    );
     return;
   }
 
@@ -679,7 +867,13 @@ async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, r
   }
 
   if (message.document) {
-    await queueDocument(runtimeEnv, chatId, message, requestOrigin);
+    await queueDocument(
+      runtimeEnv,
+      chatId,
+      message,
+      requestOrigin,
+      directUploadEnabled,
+    );
     return;
   }
   if (command === "/status") {
@@ -691,18 +885,32 @@ async function handleMessage(runtimeEnv: RuntimeEnv, message: TelegramMessage, r
     return;
   }
   if (command === "/upload") {
-    await sendBrowserUploadLink(runtimeEnv, chatId, requestOrigin);
+    if (directUploadEnabled) {
+      await sendMessage(
+        runtimeEnv,
+        chatId,
+        "Отправьте сюда файл .xls или .xlsx размером до 1 ГБ. После подтверждения бот сам загрузит и опубликует его — открывать отдельную ссылку не нужно.",
+      );
+    } else {
+      await sendBrowserUploadLink(runtimeEnv, chatId, requestOrigin);
+    }
     return;
   }
   if (command === "/start" || command === "/help") {
-    await sendMessage(runtimeEnv, chatId, helpText(siteUrl(runtimeEnv, requestOrigin)));
+    await sendMessage(
+      runtimeEnv,
+      chatId,
+      helpText(siteUrl(runtimeEnv, requestOrigin), directUploadEnabled),
+    );
     return;
   }
 
   await sendMessage(
     runtimeEnv,
     chatId,
-    "Отправьте файл .xls или .xlsx, используйте /upload для большого файла или откройте /help.",
+    directUploadEnabled
+      ? "Отправьте файл .xls или .xlsx размером до 1 ГБ или откройте /help."
+      : "Отправьте файл .xls или .xlsx, используйте /upload для большого файла или откройте /help.",
   );
 }
 
@@ -710,6 +918,7 @@ async function handleCallback(
   runtimeEnv: RuntimeEnv,
   callback: TelegramCallback,
   requestOrigin: string,
+  directUploadEnabled: boolean,
 ) {
   const chatId = callback.message ? String(callback.message.chat.id) : String(callback.from.id);
   const owner = await getOwnerChatId();
@@ -726,6 +935,17 @@ async function handleCallback(
 
   await answerCallback(runtimeEnv, callback.id, action === "publish" ? "Проверяю файл…" : "Выполняю…");
   if (action === "cancel") {
+    if (directUploadEnabled) {
+      const published = await resetBrowserUploadSessionsForSource(runtimeEnv, id);
+      if (published) {
+        await tryEditCallbackMessage(
+          runtimeEnv,
+          callback,
+          `Файл уже опубликован.\n\n${siteUrl(runtimeEnv, requestOrigin)}/api/price/download`,
+        );
+        return;
+      }
+    }
     await getDb()
       .delete(pendingUploads)
       .where(and(eq(pendingUploads.id, id), eq(pendingUploads.chatId, chatId)));
@@ -733,8 +953,14 @@ async function handleCallback(
     return;
   }
   if (action === "publish") {
-    await publishPending(runtimeEnv, callback, id, chatId, requestOrigin);
-    return;
+    return publishPending(
+      runtimeEnv,
+      callback,
+      id,
+      chatId,
+      requestOrigin,
+      directUploadEnabled,
+    );
   }
   if (action === "rollback") {
     await rollbackVersion(runtimeEnv, callback, id);
@@ -775,6 +1001,20 @@ export async function POST(request: Request) {
     return Response.json({ ok: false }, { status: 401 });
   }
 
+  const expectedBridgeSecret = runtimeEnv.TELEGRAM_LOCAL_BRIDGE_SECRET ?? "";
+  const suppliedBridgeSecret =
+    request.headers.get("X-UnB-Telegram-Local-Bridge-Secret") ?? "";
+  if (
+    suppliedBridgeSecret &&
+    (!expectedBridgeSecret || !secureEqual(suppliedBridgeSecret, expectedBridgeSecret))
+  ) {
+    return Response.json({ ok: false }, { status: 403 });
+  }
+  const directUploadEnabled =
+    Boolean(expectedBridgeSecret) &&
+    Boolean(suppliedBridgeSecret) &&
+    secureEqual(suppliedBridgeSecret, expectedBridgeSecret);
+
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > MAX_WEBHOOK_BYTES) {
     return Response.json({ ok: false }, { status: 413 });
@@ -792,11 +1032,24 @@ export async function POST(request: Request) {
 
   try {
     const requestOrigin = new URL(request.url).origin;
-    if (update.message) await handleMessage(runtimeEnv, update.message, requestOrigin);
-    if (update.callback_query) {
-      await handleCallback(runtimeEnv, update.callback_query, requestOrigin);
+    if (update.message) {
+      await handleMessage(
+        runtimeEnv,
+        update.message,
+        requestOrigin,
+        directUploadEnabled,
+      );
     }
-    return Response.json({ ok: true });
+    let localUpload: LocalUploadInstruction | undefined;
+    if (update.callback_query) {
+      localUpload = await handleCallback(
+        runtimeEnv,
+        update.callback_query,
+        requestOrigin,
+        directUploadEnabled,
+      );
+    }
+    return Response.json(localUpload ? { ok: true, localUpload } : { ok: true });
   } catch {
     return Response.json({ ok: false }, { status: 500 });
   }

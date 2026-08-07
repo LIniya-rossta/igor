@@ -73,6 +73,8 @@ export const browserUploadSessions = sqliteTable(
     originalName: text("original_name"),
     fileSize: integer("file_size"),
     partSize: integer("part_size").notNull(),
+    sourcePendingId: text("source_pending_id"),
+    sourceFileUniqueId: text("source_file_unique_id"),
     operationNonce: text("operation_nonce"),
     createdAt: integer("created_at").notNull(),
     expiresAt: integer("expires_at").notNull(),
@@ -84,6 +86,7 @@ export const browserUploadSessions = sqliteTable(
     uniqueIndex("browser_upload_sessions_object_key_unique").on(table.objectKey),
     index("browser_upload_sessions_expires_at_idx").on(table.expiresAt),
     index("browser_upload_sessions_chat_status_idx").on(table.chatId, table.status),
+    uniqueIndex("browser_upload_sessions_source_pending_idx").on(table.sourcePendingId),
     check(
       "browser_upload_sessions_status_check",
       sql`${table.status} in ('issued', 'uploading', 'validating', 'published', 'failed', 'cancelled')`,

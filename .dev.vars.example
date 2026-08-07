@@ -5,3 +5,16 @@ PUBLIC_SITE_URL=http://localhost:3000
 LOCAL_WEBHOOK_URL=http://localhost:3000/api/telegram/webhook
 # Set to 1 only when local polling may intentionally disable an existing webhook.
 LOCAL_BOT_TAKEOVER=0
+
+# Direct Telegram files up to 1 GiB require the official Local Bot API server.
+# Get API ID/hash from https://my.telegram.org/apps; they are not the bot token.
+TELEGRAM_API_ID=
+TELEGRAM_API_HASH=
+# Keep https://api.telegram.org for cloud mode. Direct mode accepts only
+# http://127.0.0.1:8081; localhost and ::1 are intentionally rejected.
+TELEGRAM_API_BASE_URL=https://api.telegram.org
+# Relative binary paths are resolved from the project root.
+TELEGRAM_LOCAL_API_BINARY=.telegram-bot-api/bin/telegram-bot-api
+# Empty uses the ignored project-local .telegram-bot-api/data directory.
+TELEGRAM_LOCAL_FILES_ROOT=
+TELEGRAM_LOCAL_BRIDGE_SECRET=
