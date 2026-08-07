@@ -156,10 +156,16 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
     new URL("../docs/app.js", import.meta.url),
     "utf8",
   );
+  const rootHtml = await readFile(
+    new URL("../index.html", import.meta.url),
+    "utf8",
+  );
 
   assert.match(html, /<title>UnB computers — компьютеры и комплектующие<\/title>/i);
   assert.match(html, /data-price-download/);
   assert.match(html, /\.\/styles\.css/);
+  assert.match(rootHtml, /\.\/docs\/styles\.css/);
+  assert.match(rootHtml, /\.\/docs\/app\.js/);
   assert.match(script, /unb-computers-kg\.zilolatashievaz\.chatgpt\.site/);
   assert.match(script, /\/api\/price\/meta/);
 
