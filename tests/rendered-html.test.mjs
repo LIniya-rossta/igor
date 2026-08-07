@@ -147,6 +147,7 @@ test("renders the UnB price landing page and social metadata", async () => {
   assert.match(html, /Поддержка XLS и XLSX/);
   assert.match(html, /https:\/\/wa\.me\/996555342425\?text=/);
   assert.match(html, /Написать в WhatsApp/);
+  assert.doesNotMatch(html, /WhatsApp: \+996 555 342 425/);
 });
 
 test("serves a GitHub Pages frontend backed by the public price API", async () => {
@@ -167,9 +168,11 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(html, /data-price-download/);
   assert.match(html, /\.\/styles\.css/);
   assert.match(html, /https:\/\/wa\.me\/996555342425\?text=/);
+  assert.doesNotMatch(html, /WhatsApp: \+996 555 342 425/);
   assert.match(rootHtml, /\.\/docs\/styles\.css/);
   assert.match(rootHtml, /\.\/docs\/app\.js/);
   assert.match(rootHtml, /https:\/\/wa\.me\/996555342425\?text=/);
+  assert.doesNotMatch(rootHtml, /WhatsApp: \+996 555 342 425/);
   assert.match(script, /unb-computers-kg\.zilolatashievaz\.chatgpt\.site/);
   assert.match(script, /\/api\/price\/meta/);
 
