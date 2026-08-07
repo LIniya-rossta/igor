@@ -163,6 +163,14 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
     new URL("../index.html", import.meta.url),
     "utf8",
   );
+  const staticStyles = await readFile(
+    new URL("../docs/styles.css", import.meta.url),
+    "utf8",
+  );
+  const appStyles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
 
   assert.match(html, /<title>UnB computers — компьютеры и комплектующие<\/title>/i);
   assert.match(html, /data-price-download/);
@@ -175,6 +183,15 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.doesNotMatch(rootHtml, /WhatsApp: \+996 555 342 425/);
   assert.match(script, /unb-computers-kg\.zilolatashievaz\.chatgpt\.site/);
   assert.match(script, /\/api\/price\/meta/);
+  assert.match(staticStyles, /@media \(max-width: 640px\)/);
+  assert.match(staticStyles, /@media \(max-width: 380px\)/);
+  assert.match(staticStyles, /\.header-action span \{ width: 44px; height: 44px;/);
+  assert.match(staticStyles, /\.price-window \{ max-width: 100%; min-width: 0;/);
+  assert.match(staticStyles, /\.contact-button \{ width: 100%; min-height: 64px;/);
+  assert.equal(
+    appStyles.replace(/^@import "tailwindcss";\s*/, "").trim(),
+    staticStyles.trim(),
+  );
 
   const allowed = publicPriceHeaders("https://liniya-rossta.github.io");
   assert.equal(

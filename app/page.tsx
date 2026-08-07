@@ -48,7 +48,7 @@ export default function Home() {
         <span className="announcement-dot" aria-hidden="true" />
         Прайс обновлён <LivePriceDate />
         <span className="announcement-divider" aria-hidden="true" />
-        Цены и наличие уточняйте у менеджера
+        <span className="announcement-extra">Цены и наличие уточняйте у менеджера</span>
       </div>
 
       <header className="site-header">
