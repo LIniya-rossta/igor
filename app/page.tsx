@@ -35,6 +35,12 @@ const benefits = [
   ["Для дома и бизнеса", "От одного устройства до комплексного оснащения офиса."],
 ];
 
+const whatsappUrl =
+  "https://wa.me/996555342425?text=" +
+  encodeURIComponent(
+    "Здравствуйте! Пишу с сайта UnB computers. Хочу уточнить цену и наличие.",
+  );
+
 export default function Home() {
   return (
     <main>
@@ -205,9 +211,14 @@ export default function Home() {
             <h2>Расскажите задачу —<br /><em>подберём решение.</em></h2>
           </div>
           <div className="contact-side">
-            <p>Контактный номер и WhatsApp подключаются перед публикацией сайта.</p>
-            <a href="mailto:hello@unb-computers.kg" className="contact-button">
-              Написать менеджеру <span aria-hidden="true">↗</span>
+            <p>WhatsApp: +996 555 342 425. Напишите менеджеру, чтобы уточнить наличие, финальную цену и подобрать подходящее решение.</p>
+            <a
+              href={whatsappUrl}
+              className="contact-button"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Написать в WhatsApp <span aria-hidden="true">↗</span>
             </a>
           </div>
         </div>
