@@ -14,6 +14,7 @@ import {
   isXlsxFilename,
   MAX_XLSX_BYTES,
 } from "../lib/xlsx.ts";
+import { publicPriceHeaders } from "../lib/public-api.ts";
 
 function testCrc32(bytes) {
   let crc = 0xffffffff;
@@ -105,10 +106,15 @@ const linkedWorksheetEntries = [
   ],
 ];
 
-async function renderPage(pathname = "/") {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+let workerModule;
+
+async function renderPage(pathname = "/", requestHeaders = {}) {
+  if (!workerModule) {
+    const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+    workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+    workerModule = import(workerUrl.href);
+  }
+  const { default: worker } = await workerModule;
 
   return worker.fetch(
     new Request(new URL(pathname, "https://unb.example/"), {
@@ -117,6 +123,7 @@ async function renderPage(pathname = "/") {
         host: "unb.example",
         "x-forwarded-host": "unb.example",
         "x-forwarded-proto": "https",
+        ...requestHeaders,
       },
     }),
     {
@@ -138,6 +145,32 @@ test("renders the UnB price landing page and social metadata", async () => {
   assert.match(html, /\/api\/price\/download/);
   assert.match(html, /https:\/\/unb\.example\/og-unb\.png/);
   assert.match(html, /Поддержка XLS и XLSX/);
+});
+
+test("serves a GitHub Pages frontend backed by the public price API", async () => {
+  const html = await readFile(
+    new URL("../docs/index.html", import.meta.url),
+    "utf8",
+  );
+  const script = await readFile(
+    new URL("../docs/app.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(html, /<title>UnB computers — компьютеры и комплектующие<\/title>/i);
+  assert.match(html, /data-price-download/);
+  assert.match(html, /\.\/styles\.css/);
+  assert.match(script, /unb-computers-kg\.zilolatashievaz\.chatgpt\.site/);
+  assert.match(script, /\/api\/price\/meta/);
+
+  const allowed = publicPriceHeaders("https://liniya-rossta.github.io");
+  assert.equal(
+    allowed.get("access-control-allow-origin"),
+    "https://liniya-rossta.github.io",
+  );
+
+  const denied = publicPriceHeaders("https://example.com");
+  assert.equal(denied.get("access-control-allow-origin"), null);
 });
 
 test("renders a secure uploader for XLS and XLSX", async () => {
