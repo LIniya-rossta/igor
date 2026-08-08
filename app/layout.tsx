@@ -7,7 +7,6 @@ const description =
   "Компьютеры, комплектующие и периферия для дома и бизнеса. Скачайте актуальный прайс-лист UnB computers.";
 
 export const viewport: Viewport = {
-  colorScheme: "light",
   themeColor: "#f3f0e8",
 };
 
@@ -53,6 +52,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
+      <head>
+        <meta name="color-scheme" content="only light" />
+        <meta name="darkreader-lock" />
+      </head>
       <body>{children}</body>
     </html>
   );
