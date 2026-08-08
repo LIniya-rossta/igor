@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light only;
   --navy: #071624;
   --navy-soft: #0b2133;
   --ink: #101820;
@@ -12,7 +13,7 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; overflow-x: hidden; overflow-x: clip; }
+html { scroll-behavior: smooth; overflow-x: hidden; overflow-x: clip; background: var(--paper); }
 body {
   margin: 0;
   min-width: 320px;

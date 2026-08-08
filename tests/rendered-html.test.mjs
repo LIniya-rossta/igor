@@ -147,6 +147,8 @@ test("renders the UnB price landing page and social metadata", async () => {
   assert.match(html, /Поддержка XLS и XLSX/);
   assert.match(html, /https:\/\/wa\.me\/996555342425\?text=/);
   assert.match(html, /Написать в WhatsApp/);
+  assert.match(html, /<meta name="color-scheme" content="light"\s*\/?>/i);
+  assert.match(html, /<meta name="theme-color" content="#f3f0e8"\s*\/?>/i);
   assert.doesNotMatch(html, /WhatsApp: \+996 555 342 425/);
 });
 
@@ -181,10 +183,13 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(rootHtml, /\.\/docs\/app\.js/);
   assert.match(rootHtml, /https:\/\/wa\.me\/996555342425\?text=/);
   assert.doesNotMatch(rootHtml, /WhatsApp: \+996 555 342 425/);
+  assert.match(rootHtml, /<meta name="color-scheme" content="light only"\s*\/?>/i);
+  assert.match(rootHtml, /<meta name="theme-color" content="#f3f0e8"\s*\/?>/i);
   assert.match(script, /unb-computers-kg\.zilolatashievaz\.chatgpt\.site/);
   assert.match(script, /\/api\/price\/meta/);
   assert.match(staticStyles, /@media \(max-width: 640px\)/);
   assert.match(staticStyles, /@media \(max-width: 380px\)/);
+  assert.match(staticStyles, /color-scheme: light only/);
   assert.match(staticStyles, /\.header-action span \{ width: 44px; height: 44px;/);
   assert.match(staticStyles, /\.price-window \{ max-width: 100%; min-width: 0;/);
   assert.match(staticStyles, /\.contact-button \{ width: 100%; min-height: 64px;/);

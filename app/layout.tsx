@@ -1,10 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 
 const title = "UnB computers — компьютеры и комплектующие";
 const description =
   "Компьютеры, комплектующие и периферия для дома и бизнеса. Скачайте актуальный прайс-лист UnB computers.";
+
+export const viewport: Viewport = {
+  colorScheme: "light",
+  themeColor: "#f3f0e8",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
