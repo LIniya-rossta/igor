@@ -295,24 +295,7 @@ async function sendBrowserUploadLink(
   }
 }
 
-async function claimOwner(
-  runtimeEnv: RuntimeEnv,
-  chatId: string,
-  suppliedCode: string,
-  requestOrigin: string,
-  directUploadEnabled: boolean,
-) {
-  const existingOwner = await getOwnerChatId();
-  if (existingOwner) {
-    await trySendMessage(
-      runtimeEnv,
-      chatId,
-      existingOwner === chatId
-        ? "Этот чат уже подключён как владелец. Отправьте /help, чтобы увидеть команды."
-        : "Доступ закрыт: у бота уже есть владелец.",
-    );
-    return;
-  }
+
 
   const existingBlock = await claimBlockedUntil(chatId);
   if (existingBlock > Date.now()) {
