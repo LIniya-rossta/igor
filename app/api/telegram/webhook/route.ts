@@ -901,12 +901,20 @@ async function handleMessage(
   );
 }
 
-async function handleCallback(
+sync function handleCallback(
   runtimeEnv: RuntimeEnv,
   callback: TelegramCallback,
   requestOrigin: string,
   directUploadEnabled: boolean,
-) 
+) {
+  const chatId = callback.message
+    ? String(callback.message.chat.id)
+    : String(callback.from.id);
+
+  const [action, id] = (callback.data ?? "").split(":", 2);
+
+  ...
+}
 
   const [action, id] = (callback.data ?? "").split(":", 2);
   if (!id) {
