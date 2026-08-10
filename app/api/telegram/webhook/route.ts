@@ -856,16 +856,7 @@ async function handleMessage(
     return;
   }
 
-  const owner = await getOwnerChatId();
-  if (!owner) {
-    await trySendMessage(runtimeEnv, chatId, "Бот ещё не подключён. Владельцу нужно отправить команду /claim и личный код подключения.");
-    return;
-  }
-  if (owner !== chatId) {
-    await trySendMessage(runtimeEnv, chatId, "Доступ закрыт: этот бот управляется владельцем UnB computers.");
-    return;
-  }
-
+  
   if (message.document) {
     await queueDocument(
       runtimeEnv,
