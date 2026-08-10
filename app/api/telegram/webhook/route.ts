@@ -336,11 +336,7 @@ async function claimOwner(
     .values({ key: OWNER_SETTING, value: chatId, updatedAt: Date.now() })
     .onConflictDoNothing();
 
-  const owner = await getOwnerChatId();
-  if (owner !== chatId) {
-    await trySendMessage(runtimeEnv, chatId, "Бот уже был подключён в другом чате.");
-    return;
-  }
+
 
   await getDb().delete(claimAttempts).where(eq(claimAttempts.chatId, chatId));
 
@@ -910,13 +906,7 @@ async function handleCallback(
   callback: TelegramCallback,
   requestOrigin: string,
   directUploadEnabled: boolean,
-) {
-  const chatId = callback.message ? String(callback.message.chat.id) : String(callback.from.id);
-  const owner = await getOwnerChatId();
-  if (!owner || owner !== chatId || String(callback.from.id) !== owner) {
-    await answerCallback(runtimeEnv, callback.id, "Нет доступа");
-    return;
-  }
+) 
 
   const [action, id] = (callback.data ?? "").split(":", 2);
   if (!id) {
