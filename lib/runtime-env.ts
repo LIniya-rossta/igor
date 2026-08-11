@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { getRailwayRuntime, isRailwayNodeRuntime } from "@/lib/railway-runtime";
 
 export interface RuntimeEnv {
   DB: D1Database;
@@ -12,5 +13,8 @@ export interface RuntimeEnv {
 }
 
 export function getRuntimeEnv(): RuntimeEnv {
+  if (isRailwayNodeRuntime()) {
+    return getRailwayRuntime() as unknown as RuntimeEnv;
+  }
   return env as unknown as RuntimeEnv;
 }
