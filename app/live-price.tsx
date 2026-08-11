@@ -29,6 +29,14 @@ const META_TTL_MS = 60_000;
 let metaCache: { request: Promise<PriceMeta>; expiresAt: number } | null = null;
 let newItemsCache: { request: Promise<string[]>; expiresAt: number } | null = null;
 
+function formatNewItemsCount(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} позиция`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} позиции`;
+  return `${count} позиций`;
+}
+
 function loadMeta() {
   const now = Date.now();
   if (metaCache && metaCache.expiresAt > now) return metaCache.request;
@@ -110,9 +118,7 @@ export function LivePriceFormat() {
 export function LiveNewItems() {
   const [items, setItems] = useState<string[]>([]);
 
-  const itemCountLabel = items.length
-    ? `${items.length} ${items.length === 1 ? "позиция" : items.length < 5 ? "позиции" : "позиций"}`
-    : "Пока пусто";
+  const itemCountLabel = items.length ? formatNewItemsCount(items.length) : "Пока пусто";
 
   useEffect(() => {
     let active = true;
