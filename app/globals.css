@@ -11,7 +11,6 @@
   --yellow-deep: #e7a600;
   --red: #d4202f;
   --line: rgba(7, 22, 36, 0.15);
-  --announcement-height: 36px;
   --shell: min(1180px, calc(100% - 48px));
 }
 
@@ -63,9 +62,6 @@ main { overflow-x: clip; }
   background: rgba(7, 22, 36, .94);
   color: var(--white);
   border-bottom: 1px solid rgba(255,255,255,.08);
-  position: sticky;
-  top: var(--announcement-height);
-  z-index: 20;
   backdrop-filter: blur(18px);
 }
 .brand { width: max-content; display: flex; flex-direction: column; line-height: .76; }
@@ -215,7 +211,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 @media (max-width: 640px) {
-  :root { --shell: calc(100% - 28px); --announcement-height: 34px; }
+  :root { --shell: calc(100% - 28px); }
   .announcement { min-height: 34px; padding: 7px 14px; justify-content: flex-start; overflow: hidden; white-space: nowrap; font-size: 9px; }
   .announcement-divider, .announcement-extra { display: none; }
   .site-header { height: 70px; padding-inline: 14px; }
