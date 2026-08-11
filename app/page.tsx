@@ -6,35 +6,6 @@ import {
   LivePriceFormat,
 } from "./live-price";
 
-const categories = [
-  {
-    index: "01",
-    title: "Компьютеры",
-    description: "Готовые рабочие станции, игровые сборки и офисные решения.",
-  },
-  {
-    index: "02",
-    title: "Комплектующие",
-    description: "Процессоры, видеокарты, память, накопители и охлаждение.",
-  },
-  {
-    index: "03",
-    title: "Ноутбуки",
-    description: "Модели для работы, учёбы, бизнеса и производительных задач.",
-  },
-  {
-    index: "04",
-    title: "Периферия",
-    description: "Мониторы, клавиатуры, мыши, гарнитуры и сетевое оборудование.",
-  },
-];
-
-const benefits = [
-  ["Подбор под задачу", "Собираем решение под бюджет и реальные требования, без лишних компонентов."],
-  ["Проверенные поставки", "Прозрачные позиции, гарантия и консультация до оформления заказа."],
-  ["Для дома и бизнеса", "От одного устройства до комплексного оснащения офиса."],
-];
-
 const whatsappUrl =
   "https://wa.me/996555342425?text=" +
   encodeURIComponent(
@@ -58,9 +29,7 @@ export default function Home() {
         </a>
 
         <nav className="nav-links" aria-label="Основная навигация">
-          <a href="#catalog">Каталог</a>
           <a href="#price">Прайс-лист</a>
-          <a href="#advantages">Почему мы</a>
         </nav>
 
         <a className="header-action" href="#contact">
@@ -82,9 +51,6 @@ export default function Home() {
           <div className="hero-actions">
             <a className="button button-primary" href={priceInfo.downloadUrl} download>
               Скачать прайс <span aria-hidden="true">↓</span>
-            </a>
-            <a className="button button-secondary" href="#catalog">
-              Смотреть категории
             </a>
           </div>
           <div className="hero-proof" aria-label="Преимущества">
@@ -111,31 +77,6 @@ export default function Home() {
             <span><b>Прайс актуален</b><small><LivePriceDate /></small></span>
           </div>
           <div className="visual-caption"><span>UNB / 2026</span><span>BISHKEK, KG</span></div>
-        </div>
-      </section>
-
-      <section className="catalog-section" id="catalog">
-        <div className="shell">
-          <div className="section-heading section-heading-minimal">
-            <h2>Каталог</h2>
-            <a className="section-link" href={priceInfo.downloadUrl} download>
-              Скачать прайс <span aria-hidden="true">↓</span>
-            </a>
-          </div>
-
-          <div className="category-grid">
-            {categories.map((category) => (
-              <article className="category-card" key={category.index}>
-                <div className="category-number">{category.index}</div>
-                <div className="category-symbol" aria-hidden="true"><span /><span /></div>
-                <h3>{category.title}</h3>
-                <p>{category.description}</p>
-                <a href={priceInfo.downloadUrl} download aria-label={`Скачать прайс: ${category.title}`}>
-                  В прайс-листе <span aria-hidden="true">↗</span>
-                </a>
-              </article>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -178,22 +119,6 @@ export default function Home() {
             <span>Скачать актуальный прайс</span><b aria-hidden="true">↓</b>
           </a>
           <p className="file-note">После скачивания уточните финальную цену и наличие у менеджера.</p>
-        </div>
-      </section>
-
-      <section className="advantages shell" id="advantages">
-        <div className="section-heading section-heading-minimal">
-          <h2>Почему UnB</h2>
-        </div>
-        <div className="benefit-list">
-          {benefits.map(([title, description], index) => (
-            <article className="benefit-row" key={title}>
-              <span className="benefit-index">0{index + 1}</span>
-              <h3>{title}</h3>
-              <p>{description}</p>
-              <span className="benefit-arrow" aria-hidden="true">↗</span>
-            </article>
-          ))}
         </div>
       </section>
 
