@@ -163,6 +163,14 @@ export class LocalD1Database {
         ON price_versions (is_current);
       CREATE INDEX IF NOT EXISTS price_versions_uploaded_at_idx
         ON price_versions (uploaded_at);
+      CREATE TABLE IF NOT EXISTS price_new_items (
+        price_version_id TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        product_name TEXT NOT NULL,
+        PRIMARY KEY (price_version_id, position)
+      );
+      CREATE INDEX IF NOT EXISTS price_new_items_version_idx
+        ON price_new_items (price_version_id);
       CREATE TABLE IF NOT EXISTS browser_upload_sessions (
         id TEXT PRIMARY KEY NOT NULL,
         token_hash TEXT NOT NULL UNIQUE,
