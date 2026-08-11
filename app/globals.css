@@ -100,11 +100,6 @@ h1, h2, h3, p { margin: 0; }
 .logo-panel { position: absolute; width: min(520px, 74%); aspect-ratio: 1; left: 50%; top: 50%; transform: translate(-50%, -52%); border: 1px solid rgba(255,255,255,.1); background: #071624; box-shadow: 0 34px 90px rgba(0,0,0,.36); animation: rise .8s ease-out both; }
 .logo-panel::after { content: ""; position: absolute; inset: 14px; border: 1px solid rgba(255,189,31,.2); pointer-events: none; }
 .logo-panel img { width: 100%; height: 100%; object-fit: cover; }
-.availability-card { position: absolute; right: clamp(24px, 6vw, 110px); top: 23%; display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: var(--white); color: var(--navy); box-shadow: 0 14px 40px rgba(0,0,0,.22); animation: rise .8s .16s ease-out both; }
-.availability-card span:last-child { display: flex; flex-direction: column; gap: 3px; }
-.availability-card b { font-size: 12px; }
-.availability-card small { color: #798087; font-size: 10px; }
-.availability-icon { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--yellow); font-weight: 950; }
 .visual-caption { position: absolute; left: clamp(28px, 6vw, 110px); right: clamp(28px, 6vw, 110px); bottom: 22px; display: flex; justify-content: space-between; color: rgba(255,255,255,.48); font-size: 9px; font-weight: 800; letter-spacing: .18em; }
 
 .catalog-section { padding: 120px 0 128px; background: var(--paper); border-top: 1px solid var(--line); }
@@ -187,8 +182,6 @@ h1, h2, h3, p { margin: 0; }
 .site-footer > div { display: flex; flex-direction: column; gap: 8px; justify-self: end; color: #69747b; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .1em; }
 
 @keyframes rise { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -52%); } }
-.availability-card { animation-name: card-rise; }
-@keyframes card-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (max-width: 980px) {
   :root { --shell: min(100% - 36px, 820px); }
@@ -230,7 +223,6 @@ h1, h2, h3, p { margin: 0; }
   .hero-actions .button-primary { min-height: 62px; font-size: 14px; }
   .hero-visual { min-height: 420px; }
   .logo-panel { width: min(84%, 360px); }
-  .availability-card { top: 16px; right: 12px; max-width: calc(100% - 24px); padding: 11px 13px; }
   .visual-caption { left: 18px; right: 18px; bottom: 16px; }
   .catalog-section, .advantages { padding-block: 70px; }
   .section-heading { margin-bottom: 38px; }
@@ -279,8 +271,6 @@ h1, h2, h3, p { margin: 0; }
   .hero h1 { font-size: 42px; }
   .hero-visual { min-height: 370px; }
   .logo-panel { width: min(82%, 310px); }
-  .availability-card { right: 10px; padding: 9px 11px; }
-  .availability-icon { width: 24px; height: 24px; }
   .section-heading h2, .price-copy h2, .contact-section h2 { font-size: 39px; }
   .price-section.shell { padding-inline: 14px; }
   .file-card { padding-inline: 14px; }
