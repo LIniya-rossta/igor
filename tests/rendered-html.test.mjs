@@ -172,6 +172,10 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
     new URL("../api/price/download/index.html", import.meta.url),
     "utf8",
   );
+  const docsDownload = await readFile(
+    new URL("../docs/api/price/download/index.html", import.meta.url),
+    "utf8",
+  );
   const staticStyles = await readFile(
     new URL("../docs/styles.css", import.meta.url),
     "utf8",
@@ -194,6 +198,10 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(rootHtml, /data-availability-card/);
   assert.match(
     githubPagesDownload,
+    /https:\/\/unb-computers\.up\.railway\.app\/api\/price\/download/,
+  );
+  assert.match(
+    docsDownload,
     /https:\/\/unb-computers\.up\.railway\.app\/api\/price\/download/,
   );
   assert.match(rootHtml, /https:\/\/t\.me\/unb_computers/);
