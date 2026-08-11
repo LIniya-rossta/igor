@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  primaryKey,
   sqliteTable,
   text,
   uniqueIndex,
@@ -58,6 +59,19 @@ export const priceVersions = sqliteTable(
   (table) => [
     index("price_versions_is_current_idx").on(table.isCurrent),
     index("price_versions_uploaded_at_idx").on(table.uploadedAt),
+  ],
+);
+
+export const priceNewItems = sqliteTable(
+  "price_new_items",
+  {
+    priceVersionId: text("price_version_id").notNull(),
+    position: integer("position").notNull(),
+    productName: text("product_name").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.priceVersionId, table.position] }),
+    index("price_new_items_version_idx").on(table.priceVersionId),
   ],
 );
 

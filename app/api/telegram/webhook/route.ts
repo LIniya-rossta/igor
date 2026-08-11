@@ -2,7 +2,12 @@
 
 import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { appSettings, claimAttempts, pendingUploads, priceVersions } from "@/db/schema";
+import {
+  appSettings,
+  claimAttempts,
+  pendingUploads,
+  priceVersions,
+} from "@/db/schema";
 import {
   BROWSER_UPLOAD_ABSOLUTE_LIFETIME_MS,
   getPublishedBrowserUploadSessionForSource,
@@ -28,6 +33,7 @@ import {
 } from "@/lib/price";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import { telegramMethodUrl } from "@/lib/telegram-api";
+import { extractNewProductNamesFromExcelBytes } from "@/lib/xlsx-new-items";
 import {
   addAuthorizedChatId,
   parseAuthorizedChatIds,
@@ -728,6 +734,11 @@ async function publishPending(
     return;
   }
 
+  const newItemNames = await extractNewProductNamesFromExcelBytes(
+    bytes,
+    pending.originalName,
+  );
+
   const now = Date.now();
   const versionId = pending.id;
   const format = excelFileFormat(pending.originalName);
@@ -763,6 +774,23 @@ async function publishPending(
         pending.fileUniqueId,
         pending.originalName,
         pending.fileSize,
+      ),
+      ...newItemNames.map((productName, position) =>
+        runtimeEnv.DB.prepare(
+          `INSERT INTO price_new_items (price_version_id, position, product_name)
+           SELECT ?, ?, ?
+           WHERE EXISTS (
+             SELECT 1 FROM price_versions
+             WHERE id = ? AND telegram_file_unique_id = ?
+           )
+           ON CONFLICT(price_version_id, position) DO NOTHING`,
+        ).bind(
+          versionId,
+          position,
+          productName,
+          versionId,
+          pending.fileUniqueId,
+        ),
       ),
       runtimeEnv.DB.prepare(
         `UPDATE price_versions SET is_current = 0
@@ -830,6 +858,7 @@ async function publishPending(
       `Файл: ${pending.originalName}`,
       `Версия: ${formatPriceVersion(publishedVersion.uploadedAt)}`,
       `Дата на сайте: ${formatPriceDate(publishedVersion.uploadedAt)}`,
+      `Новинок найдено: ${newItemNames.length}`,
       "",
       `${siteUrl(runtimeEnv, requestOrigin)}/api/price/download`,
     ].join("\n"),

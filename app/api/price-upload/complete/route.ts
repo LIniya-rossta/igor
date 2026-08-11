@@ -19,6 +19,7 @@ import { isValidExcelObject } from "@/lib/excel";
 import { formatPriceDate, formatPriceVersion } from "@/lib/price";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import { formatFileSize } from "@/lib/xlsx";
+import { extractNewProductNamesFromExcelObject } from "@/lib/xlsx-new-items";
 
 export const dynamic = "force-dynamic";
 
@@ -183,12 +184,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const newItemNames = await extractNewProductNamesFromExcelObject(
+      runtimeEnv.PRICE_FILES,
+      leasedSession.objectKey,
+      originalName,
+    );
+
     const uploadedAt = Date.now();
     const published = await publishValidatedSession(
       runtimeEnv,
       leasedSession,
       operationNonce,
       uploadedAt,
+      newItemNames,
     );
     if (published) operationNonce = null;
     if (!published) {
@@ -240,6 +248,7 @@ export async function POST(request: Request) {
         `Версия: ${formatPriceVersion(uploadedAt)}`,
         `Дата на сайте: ${formatPriceDate(uploadedAt)}`,
         `Размер: ${formatFileSize(leasedSession.fileSize)}`,
+        `Новинок найдено: ${newItemNames.length}`,
         "",
         `${siteUrl}/api/price/download`,
       ].join("\n"),

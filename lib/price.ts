@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { priceVersions } from "@/db/schema";
+import { priceNewItems, priceVersions } from "@/db/schema";
 import { priceInfo } from "@/app/price-config";
 import { excelContentDisposition } from "@/lib/excel-file";
 
@@ -37,6 +37,16 @@ export async function getRecentPriceVersions(limit = 5) {
     .from(priceVersions)
     .orderBy(desc(priceVersions.uploadedAt))
     .limit(Math.min(Math.max(limit, 1), 10));
+}
+
+export async function getCurrentNewItems() {
+  const current = await getCurrentPriceVersion();
+  if (!current) return [];
+  return getDb()
+    .select({ productName: priceNewItems.productName })
+    .from(priceNewItems)
+    .where(eq(priceNewItems.priceVersionId, current.id))
+    .orderBy(priceNewItems.position);
 }
 
 export function formatPriceDate(timestamp: number) {

@@ -591,6 +591,7 @@ export async function publishValidatedSession(
   session: BrowserUploadSession,
   operationNonce: string,
   uploadedAt: number,
+  newItemNames: string[] = [],
 ) {
   if (!session.originalName || !session.fileSize) return false;
   if (Boolean(session.sourcePendingId) !== Boolean(session.sourceFileUniqueId)) {
@@ -713,6 +714,23 @@ export async function publishValidatedSession(
       session.fileSize,
       session.id,
       telegramFileUniqueId,
+    ),
+    ...newItemNames.map((productName, position) =>
+      runtimeEnv.DB.prepare(
+        `INSERT INTO price_new_items (price_version_id, position, product_name)
+         SELECT ?, ?, ?
+         WHERE EXISTS (
+           SELECT 1 FROM price_versions
+           WHERE id = ? AND telegram_file_unique_id = ?
+         )
+         ON CONFLICT(price_version_id, position) DO NOTHING`,
+      ).bind(
+        session.id,
+        position,
+        productName,
+        session.id,
+        telegramFileUniqueId,
+      ),
     ),
   ]);
 

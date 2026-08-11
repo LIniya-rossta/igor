@@ -43,6 +43,13 @@
       "when": 1786047969548,
       "tag": "0005_spicy_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786049000000,
+      "tag": "0006_new_items",
+      "breakpoints": true
     }
   ]
 }

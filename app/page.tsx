@@ -5,6 +5,7 @@ import {
   LivePriceFileLine,
   LivePriceFilename,
   LivePriceFormat,
+  LiveNewItems,
 } from "./live-price";
 
 const telegramUrl = "https://t.me/unb_computers";
@@ -68,6 +69,8 @@ export default function Home() {
           <div className="visual-caption"><span>UNB / 2026</span><span>BISHKEK, KG</span></div>
         </div>
       </section>
+
+      <LiveNewItems />
 
       <section className="price-section shell" id="price">
         <div className="price-copy">
