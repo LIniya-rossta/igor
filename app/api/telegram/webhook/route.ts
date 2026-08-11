@@ -1,3 +1,5 @@
+
+
 import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { appSettings, claimAttempts, pendingUploads, priceVersions } from "@/db/schema";
@@ -295,7 +297,24 @@ async function sendBrowserUploadLink(
   }
 }
 
-
+async function claimOwner(
+  runtimeEnv: RuntimeEnv,
+  chatId: string,
+  suppliedCode: string,
+  requestOrigin: string,
+  directUploadEnabled: boolean,
+) {
+  const existingOwner = await getOwnerChatId();
+  if (existingOwner) {
+    await trySendMessage(
+      runtimeEnv,
+      chatId,
+      existingOwner === chatId
+        ? "Этот чат уже подключён как владелец. Отправьте /help, чтобы увидеть команды."
+        : "Доступ закрыт: у бота уже есть владелец.",
+    );
+    return;
+  }
 
   const existingBlock = await claimBlockedUntil(chatId);
   if (existingBlock > Date.now()) {
@@ -319,7 +338,11 @@ async function sendBrowserUploadLink(
     .values({ key: OWNER_SETTING, value: chatId, updatedAt: Date.now() })
     .onConflictDoNothing();
 
-
+  const owner = await getOwnerChatId();
+  if (owner !== chatId) {
+    await trySendMessage(runtimeEnv, chatId, "Бот уже был подключён в другом чате.");
+    return;
+  }
 
   await getDb().delete(claimAttempts).where(eq(claimAttempts.chatId, chatId));
 
@@ -835,7 +858,16 @@ async function handleMessage(
     return;
   }
 
-  
+  const owner = await getOwnerChatId();
+  if (!owner) {
+    await trySendMessage(runtimeEnv, chatId, "Бот ещё не подключён. Владельцу нужно отправить команду /claim и личный код подключения.");
+    return;
+  }
+  if (owner !== chatId) {
+    await trySendMessage(runtimeEnv, chatId, "Доступ закрыт: этот бот управляется владельцем UnB computers.");
+    return;
+  }
+
   if (message.document) {
     await queueDocument(
       runtimeEnv,
@@ -884,20 +916,18 @@ async function handleMessage(
   );
 }
 
-sync function handleCallback(
+async function handleCallback(
   runtimeEnv: RuntimeEnv,
   callback: TelegramCallback,
   requestOrigin: string,
   directUploadEnabled: boolean,
 ) {
-  const chatId = callback.message
-    ? String(callback.message.chat.id)
-    : String(callback.from.id);
-
-  const [action, id] = (callback.data ?? "").split(":", 2);
-
-  ...
-}
+  const chatId = callback.message ? String(callback.message.chat.id) : String(callback.from.id);
+  const owner = await getOwnerChatId();
+  if (!owner || owner !== chatId || String(callback.from.id) !== owner) {
+    await answerCallback(runtimeEnv, callback.id, "Нет доступа");
+    return;
+  }
 
   const [action, id] = (callback.data ?? "").split(":", 2);
   if (!id) {
