@@ -111,6 +111,10 @@ h1, h2, h3, p { margin: 0; }
 .catalog-section { padding: 120px 0 128px; background: var(--paper); border-top: 1px solid var(--line); }
 .section-heading { display: grid; grid-template-columns: 1fr .7fr; gap: 80px; align-items: end; margin-bottom: 60px; }
 .section-heading.compact { grid-template-columns: 1fr; }
+.section-heading-minimal { grid-template-columns: 1fr auto; gap: 24px; margin-bottom: 34px; }
+.section-heading.section-heading-minimal h2 { font-size: clamp(30px, 3.2vw, 46px); letter-spacing: -.055em; }
+.section-link { display: inline-flex; align-items: center; gap: 18px; padding-bottom: 8px; border-bottom: 1px solid var(--navy); color: var(--navy); font-size: 12px; font-weight: 850; }
+.section-link span { color: var(--red); font-size: 18px; line-height: .7; }
 .section-kicker { display: inline-block; margin-bottom: 18px; color: var(--red); font-size: 10px; font-weight: 900; letter-spacing: .17em; text-transform: uppercase; }
 .section-heading h2, .price-copy h2, .contact-section h2 { color: var(--navy); font-size: clamp(45px, 5.4vw, 76px); line-height: .94; letter-spacing: -.065em; font-weight: 900; }
 .section-heading > p { max-width: 450px; color: #59666e; font-size: 15px; line-height: 1.75; }
@@ -194,6 +198,7 @@ h1, h2, h3, p { margin: 0; }
   .hero-copy { padding: 78px 36px; }
   .hero-visual { min-height: 620px; border-left: 0; border-top: 1px solid var(--line); }
   .section-heading { grid-template-columns: 1fr; gap: 28px; }
+  .section-heading-minimal { grid-template-columns: 1fr auto; gap: 20px; }
   .category-grid { grid-template-columns: repeat(2,1fr); }
   .category-card { border-bottom: 1px solid var(--line); }
   .category-card:nth-child(2) { border-right: 0; }
@@ -229,6 +234,9 @@ h1, h2, h3, p { margin: 0; }
   .visual-caption { left: 18px; right: 18px; bottom: 16px; }
   .catalog-section, .advantages { padding-block: 70px; }
   .section-heading { margin-bottom: 38px; }
+  .section-heading-minimal { margin-bottom: 28px; }
+  .section-heading.section-heading-minimal h2 { font-size: 32px; }
+  .section-link { font-size: 11px; gap: 10px; }
   .section-heading h2, .price-copy h2, .contact-section h2 { font-size: clamp(40px, 12vw, 48px); line-height: .98; letter-spacing: -.055em; }
   .section-heading > p { font-size: 14px; line-height: 1.65; }
   .category-grid { grid-template-columns: 1fr; }

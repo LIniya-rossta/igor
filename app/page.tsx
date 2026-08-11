@@ -116,15 +116,11 @@ export default function Home() {
 
       <section className="catalog-section" id="catalog">
         <div className="shell">
-          <div className="section-heading">
-            <div>
-              <span className="section-kicker">Основные направления</span>
-              <h2>Всё нужное —<br />в одном месте.</h2>
-            </div>
-            <p>
-              Категории служат быстрым ориентиром. Полный ассортимент, модели,
-              цены и комментарии собраны в актуальном Excel-файле.
-            </p>
+          <div className="section-heading section-heading-minimal">
+            <h2>Каталог</h2>
+            <a className="section-link" href={priceInfo.downloadUrl} download>
+              Скачать прайс <span aria-hidden="true">↓</span>
+            </a>
           </div>
 
           <div className="category-grid">
@@ -186,11 +182,8 @@ export default function Home() {
       </section>
 
       <section className="advantages shell" id="advantages">
-        <div className="section-heading compact">
-          <div>
-            <span className="section-kicker">С нами проще</span>
-            <h2>Не просто продать.<br />Помочь выбрать.</h2>
-          </div>
+        <div className="section-heading section-heading-minimal">
+          <h2>Почему UnB</h2>
         </div>
         <div className="benefit-list">
           {benefits.map(([title, description], index) => (
