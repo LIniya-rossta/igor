@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { priceInfo } from "./price-config";
+import CountUp from "./CountUp";
 
 type PriceMeta = {
   updated: string;
@@ -29,12 +30,12 @@ const META_TTL_MS = 60_000;
 let metaCache: { request: Promise<PriceMeta>; expiresAt: number } | null = null;
 let newItemsCache: { request: Promise<string[]>; expiresAt: number } | null = null;
 
-function formatNewItemsCount(count: number) {
+function formatNewItemsNoun(count: number) {
   const mod10 = count % 10;
   const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} позиция`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} позиции`;
-  return `${count} позиций`;
+  if (mod10 === 1 && mod100 !== 11) return "позиция";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "позиции";
+  return "позиций";
 }
 
 function loadMeta() {
@@ -118,8 +119,6 @@ export function LivePriceFormat() {
 export function LiveNewItems() {
   const [items, setItems] = useState<string[]>([]);
 
-  const itemCountLabel = items.length ? formatNewItemsCount(items.length) : "Пока пусто";
-
   useEffect(() => {
     let active = true;
     const refresh = () => {
@@ -141,7 +140,14 @@ export function LiveNewItems() {
         <span className="section-kicker">Новое в прайсе</span>
         <div className="new-items-title-row">
           <h2 id="new-items-title">Новинки</h2>
-          <span className="new-items-count" aria-live="polite">{itemCountLabel}</span>
+          <span className="new-items-count" aria-live="polite">
+            {items.length ? (
+              <>
+                <CountUp from={0} to={items.length} separator="," direction="up" duration={1} className="count-up-text" delay={0} />{" "}
+                {formatNewItemsNoun(items.length)}
+              </>
+            ) : "Пока пусто"}
+          </span>
         </div>
       </div>
       <div className="new-items-list">

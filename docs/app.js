@@ -18,6 +18,34 @@ function formatItemsCount(count) {
   return `${count} позиций`;
 }
 
+function formatCountValue(value, separator) {
+  const rounded = Math.round(value);
+  return separator ? String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, separator) : String(rounded);
+}
+
+function animateItemsCount(count) {
+  document.querySelectorAll("[data-new-items-count]").forEach((element) => {
+    const previous = Number(element.dataset.countValue || 0);
+    if (previous === count && element.dataset.countReady === "true") return;
+
+    element.dataset.countValue = String(count);
+    element.dataset.countReady = "true";
+    const noun = count === 0 ? "" : formatItemsCount(count).replace(/^\d+\s*/, "");
+    const startedAt = performance.now();
+    const duration = 1000;
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const value = previous + (count - previous) * eased;
+      element.textContent = count === 0
+        ? "Пока пусто"
+        : `${formatCountValue(value, ",")} ${noun}`;
+      if (progress < 1) window.requestAnimationFrame(tick);
+    };
+    window.requestAnimationFrame(tick);
+  });
+}
+
 function applyMeta(meta) {
   const filename = typeof meta.filename === "string" ? meta.filename : "UnB-price.xlsx";
   const updated = typeof meta.updated === "string" ? meta.updated : "6 августа 2026";
@@ -49,7 +77,7 @@ function applyNewItems(payload) {
     ? payload.items.filter((item) => typeof item === "string" && item.trim().length > 0)
     : [];
 
-  setText("[data-new-items-count]", items.length ? formatItemsCount(items.length) : "Пока пусто");
+  animateItemsCount(items.length);
 
   const rows = items.map((item) => {
       const row = document.createElement("div");
