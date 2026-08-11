@@ -110,6 +110,10 @@ export function LivePriceFormat() {
 export function LiveNewItems() {
   const [items, setItems] = useState<string[]>([]);
 
+  const itemCountLabel = items.length
+    ? `${items.length} ${items.length === 1 ? "позиция" : items.length < 5 ? "позиции" : "позиций"}`
+    : "Пока пусто";
+
   useEffect(() => {
     let active = true;
     const refresh = () => {
@@ -129,7 +133,10 @@ export function LiveNewItems() {
     <section className="new-items-section shell" id="new-items" aria-labelledby="new-items-title">
       <div className="new-items-heading">
         <span className="section-kicker">Новое в прайсе</span>
-        <h2 id="new-items-title">Новинки</h2>
+        <div className="new-items-title-row">
+          <h2 id="new-items-title">Новинки</h2>
+          <span className="new-items-count" aria-live="polite">{itemCountLabel}</span>
+        </div>
       </div>
       <div className="new-items-list">
         {items.length ? items.map((item, index) => (

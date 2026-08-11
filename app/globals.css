@@ -123,12 +123,16 @@ h1, h2, h3, p { margin: 0; }
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.new-items-heading { position: sticky; top: 56px; }
+.new-items-heading { position: static; }
+.new-items-title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
 .new-items-heading h2 { color: var(--navy); font-size: clamp(46px, 5.5vw, 78px); line-height: .9; letter-spacing: -.07em; font-weight: 900; }
+.new-items-count { flex: 0 0 auto; padding: 9px 11px; border: 1px solid var(--line); color: #69747b; font-size: 10px; font-weight: 850; letter-spacing: .1em; line-height: 1; text-transform: uppercase; white-space: nowrap; }
 .new-items-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .new-item { min-height: 92px; padding: 22px 0; display: flex; align-items: flex-start; gap: 16px; border-bottom: 1px solid var(--line); color: var(--navy); font-size: 15px; line-height: 1.45; font-weight: 750; }
 .new-item:nth-child(odd) { padding-right: 28px; border-right: 1px solid var(--line); }
 .new-item:nth-child(even) { padding-left: 28px; }
+.new-item:nth-child(odd):last-child { border-right: 0; }
+.new-item > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .new-item-mark { width: 9px; height: 9px; flex: 0 0 auto; margin-top: 6px; border-radius: 50%; background: #4b9f62; box-shadow: 0 0 0 5px rgba(75,159,98,.12); }
 .new-items-empty { grid-column: 1 / -1; padding: 24px 0; color: #69747b; font-size: 15px; line-height: 1.6; }
 
@@ -255,6 +259,7 @@ h1, h2, h3, p { margin: 0; }
   .hero-actions .button-primary { min-height: 62px; font-size: 14px; }
   .hero-visual { min-height: 420px; }
   .new-items-section { padding: 62px 18px; gap: 30px; }
+  .new-items-title-row { align-items: flex-start; flex-direction: column; gap: 14px; }
   .new-items-heading h2 { font-size: 48px; }
   .new-items-list { grid-template-columns: 1fr; }
   .new-item, .new-item:nth-child(odd), .new-item:nth-child(even) { min-height: 0; padding: 18px 0; border-right: 0; }

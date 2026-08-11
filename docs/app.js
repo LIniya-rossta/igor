@@ -10,6 +10,12 @@ function setText(selector, value) {
   });
 }
 
+function formatItemsCount(count) {
+  if (count === 1) return "1 позиция";
+  if (count >= 2 && count <= 4) return `${count} позиции`;
+  return `${count} позиций`;
+}
+
 function applyMeta(meta) {
   const filename = typeof meta.filename === "string" ? meta.filename : "UnB-price.xlsx";
   const updated = typeof meta.updated === "string" ? meta.updated : "6 августа 2026";
@@ -40,6 +46,8 @@ function applyNewItems(payload) {
   const items = Array.isArray(payload.items)
     ? payload.items.filter((item) => typeof item === "string" && item.trim().length > 0)
     : [];
+
+  setText("[data-new-items-count]", items.length ? formatItemsCount(items.length) : "Пока пусто");
 
   const rows = items.map((item) => {
       const row = document.createElement("div");
