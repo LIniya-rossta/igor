@@ -49,7 +49,7 @@ export default function Home() {
             ценами, гарантией и человеческой консультацией.
           </p>
           <div className="hero-actions">
-            <a className="button button-primary" href={priceInfo.downloadUrl} download>
+            <a className="button button-primary" href="#price">
               Скачать прайс <span aria-hidden="true">↓</span>
             </a>
           </div>
