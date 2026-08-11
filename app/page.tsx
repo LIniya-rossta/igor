@@ -53,11 +53,6 @@ export default function Home() {
               Скачать прайс <span aria-hidden="true">↓</span>
             </a>
           </div>
-          <div className="hero-proof" aria-label="Преимущества">
-            <span><b>01</b> Актуальные цены</span>
-            <span><b>02</b> Гарантия</span>
-            <span><b>03</b> Быстрый подбор</span>
-          </div>
         </div>
 
         <div className="hero-visual" aria-label="Фирменный знак UnB computers">
