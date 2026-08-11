@@ -125,8 +125,6 @@ export function LiveNewItems() {
     };
   }, []);
 
-  if (!items.length) return null;
-
   return (
     <section className="new-items-section shell" id="new-items" aria-labelledby="new-items-title">
       <div className="new-items-heading">
@@ -134,12 +132,12 @@ export function LiveNewItems() {
         <h2 id="new-items-title">Новинки</h2>
       </div>
       <div className="new-items-list">
-        {items.map((item, index) => (
+        {items.length ? items.map((item, index) => (
           <div className="new-item" key={`${item}-${index}`}>
             <span className="new-item-mark" aria-hidden="true" />
             <span>{item}</span>
           </div>
-        ))}
+        )) : <p className="new-items-empty">Новые товары появятся после следующего обновления прайса.</p>}
       </div>
     </section>
   );

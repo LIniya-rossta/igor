@@ -128,6 +128,7 @@ h1, h2, h3, p { margin: 0; }
 .new-item:nth-child(odd) { padding-right: 28px; border-right: 1px solid var(--line); }
 .new-item:nth-child(even) { padding-left: 28px; }
 .new-item-mark { width: 9px; height: 9px; flex: 0 0 auto; margin-top: 6px; border-radius: 50%; background: #4b9f62; box-shadow: 0 0 0 5px rgba(75,159,98,.12); }
+.new-items-empty { grid-column: 1 / -1; padding: 24px 0; color: #69747b; font-size: 15px; line-height: 1.6; }
 
 .catalog-section { padding: 120px 0 128px; background: var(--paper); border-top: 1px solid var(--line); }
 .section-heading { display: grid; grid-template-columns: 1fr .7fr; gap: 80px; align-items: end; margin-bottom: 60px; }

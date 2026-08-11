@@ -41,8 +41,7 @@ function applyNewItems(payload) {
     ? payload.items.filter((item) => typeof item === "string" && item.trim().length > 0)
     : [];
 
-  list.replaceChildren(
-    ...items.map((item) => {
+  const rows = items.map((item) => {
       const row = document.createElement("div");
       row.className = "new-item";
       const mark = document.createElement("span");
@@ -52,9 +51,15 @@ function applyNewItems(payload) {
       name.textContent = item.trim();
       row.append(mark, name);
       return row;
-    }),
-  );
-  section.hidden = items.length === 0;
+    });
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "new-items-empty";
+    empty.textContent = "Новые товары появятся после следующего обновления прайса.";
+    rows.push(empty);
+  }
+  list.replaceChildren(...rows);
+  section.hidden = false;
 }
 
 async function refreshNewItems() {
@@ -63,7 +68,7 @@ async function refreshNewItems() {
     if (!response.ok) throw new Error("New items are unavailable");
     applyNewItems(await response.json());
   } catch {
-    // Keep the section hidden if the API is unavailable or has no migration yet.
+    // Keep the server-rendered empty state if the API is unavailable.
   }
 }
 
