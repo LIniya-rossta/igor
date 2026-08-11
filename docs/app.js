@@ -1,6 +1,6 @@
-const API_ORIGIN = "https://unb-computers-kg.zilolatashievaz.chatgpt.site";
+const API_ORIGIN = "https://unb-computers.up.railway.app";
 const META_URL = `${API_ORIGIN}/api/price/meta`;
-const DOWNLOAD_URL = "https://liniya-rossta.github.io/igor/api/price/download";
+const DOWNLOAD_URL = `${API_ORIGIN}/api/price/download`;
 const REFRESH_INTERVAL_MS = 60_000;
 const PIN_GAP_PX = 12;
 

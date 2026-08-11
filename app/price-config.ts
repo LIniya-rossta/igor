@@ -3,5 +3,7 @@ export const priceInfo = {
   version: "06.08.26",
   format: "XLS / XLSX",
   updateFrequency: "ежедневно",
-  downloadUrl: "https://liniya-rossta.github.io/igor/api/price/download",
+  // Keep this relative so the server-rendered site always downloads from the
+  // same deployment that serves the current price file (Railway in production).
+  downloadUrl: "/api/price/download",
 } as const;
