@@ -9,6 +9,7 @@
   --yellow-deep: #e7a600;
   --red: #d4202f;
   --line: rgba(7, 22, 36, 0.15);
+  --announcement-height: 36px;
   --shell: min(1180px, calc(100% - 48px));
 }
 
@@ -31,6 +32,9 @@ main { overflow-x: clip; }
 .shell { width: 100%; margin-inline: 0; }
 
 .announcement {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   min-height: 36px;
   padding: 8px 24px;
   display: flex;
@@ -43,6 +47,7 @@ main { overflow-x: clip; }
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
+  box-shadow: 0 1px 0 rgba(7,22,36,.12), 0 8px 18px rgba(7,22,36,.08);
 }
 .announcement-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--red); box-shadow: 0 0 0 4px rgba(212,32,47,.14); }
 .announcement-divider { width: 1px; height: 12px; background: rgba(7,22,36,.3); }
@@ -57,7 +62,7 @@ main { overflow-x: clip; }
   color: var(--white);
   border-bottom: 1px solid rgba(255,255,255,.08);
   position: sticky;
-  top: 0;
+  top: var(--announcement-height);
   z-index: 20;
   backdrop-filter: blur(18px);
 }
@@ -98,12 +103,10 @@ h1, h2, h3, p { margin: 0; }
 .logo-panel::after { content: ""; position: absolute; inset: 14px; border: 1px solid rgba(255,189,31,.2); pointer-events: none; }
 .logo-panel img { width: 100%; height: 100%; object-fit: cover; }
 .availability-card { position: absolute; right: clamp(24px, 6vw, 110px); top: 23%; display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: var(--white); color: var(--navy); box-shadow: 0 14px 40px rgba(0,0,0,.22); animation: rise .8s .16s ease-out both; }
-.availability-card-pinned { position: fixed; top: calc(86px + 12px); right: max(24px, calc((100vw - 1180px) / 2 + 24px)); z-index: 40; background: var(--yellow); color: var(--navy); box-shadow: 0 16px 36px rgba(7,22,36,.24); animation: pin-in .24s ease-out both; }
 .availability-card span:last-child { display: flex; flex-direction: column; gap: 3px; }
 .availability-card b { font-size: 12px; }
 .availability-card small { color: #798087; font-size: 10px; }
 .availability-icon { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--yellow); font-weight: 950; }
-.availability-card-pinned .availability-icon { background: var(--navy); color: var(--yellow); }
 .visual-caption { position: absolute; left: clamp(28px, 6vw, 110px); right: clamp(28px, 6vw, 110px); bottom: 22px; display: flex; justify-content: space-between; color: rgba(255,255,255,.48); font-size: 9px; font-weight: 800; letter-spacing: .18em; }
 
 .catalog-section { padding: 120px 0 128px; background: var(--paper); border-top: 1px solid var(--line); }
@@ -188,7 +191,6 @@ h1, h2, h3, p { margin: 0; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -52%); } }
 .availability-card { animation-name: card-rise; }
 @keyframes card-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes pin-in { from { opacity: .4; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (max-width: 980px) {
   :root { --shell: min(100% - 36px, 820px); }
@@ -211,7 +213,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 @media (max-width: 640px) {
-  :root { --shell: calc(100% - 28px); }
+  :root { --shell: calc(100% - 28px); --announcement-height: 34px; }
   .announcement { min-height: 34px; padding: 7px 14px; justify-content: flex-start; overflow: hidden; white-space: nowrap; font-size: 9px; }
   .announcement-divider, .announcement-extra { display: none; }
   .site-header { height: 70px; padding-inline: 14px; }
@@ -231,7 +233,6 @@ h1, h2, h3, p { margin: 0; }
   .hero-visual { min-height: 420px; }
   .logo-panel { width: min(84%, 360px); }
   .availability-card { top: 16px; right: 12px; max-width: calc(100% - 24px); padding: 11px 13px; }
-  .availability-card-pinned { top: 82px; right: 12px; max-width: calc(100% - 24px); }
   .visual-caption { left: 18px; right: 18px; bottom: 16px; }
   .catalog-section, .advantages { padding-block: 70px; }
   .section-heading { margin-bottom: 38px; }
@@ -281,7 +282,6 @@ h1, h2, h3, p { margin: 0; }
   .hero-visual { min-height: 370px; }
   .logo-panel { width: min(82%, 310px); }
   .availability-card { right: 10px; padding: 9px 11px; }
-  .availability-card-pinned { right: 10px; }
   .availability-icon { width: 24px; height: 24px; }
   .section-heading h2, .price-copy h2, .contact-section h2 { font-size: 39px; }
   .price-section.shell { padding-inline: 14px; }

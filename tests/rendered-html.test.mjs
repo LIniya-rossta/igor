@@ -211,7 +211,8 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(rootHtml, /<meta name="theme-color" content="#f3f0e8"\s*\/?>/i);
   assert.match(script, /unb-computers\.up\.railway\.app/);
   assert.match(script, /\/api\/price\/meta/);
-  assert.match(script, /availability-card-pinned/);
+  assert.match(staticStyles, /\.announcement \{[\s\S]*position: sticky;/);
+  assert.doesNotMatch(script, /availability-card-pinned/);
   assert.match(staticStyles, /@media \(max-width: 640px\)/);
   assert.match(staticStyles, /@media \(max-width: 380px\)/);
   assert.match(staticStyles, /color-scheme: only light/);

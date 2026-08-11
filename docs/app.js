@@ -2,7 +2,6 @@ const API_ORIGIN = "https://unb-computers.up.railway.app";
 const META_URL = `${API_ORIGIN}/api/price/meta`;
 const DOWNLOAD_URL = `${API_ORIGIN}/api/price/download`;
 const REFRESH_INTERVAL_MS = 60_000;
-const PIN_GAP_PX = 12;
 
 function setText(selector, value) {
   document.querySelectorAll(selector).forEach((element) => {
@@ -35,37 +34,6 @@ async function refreshPriceMeta() {
 document.querySelectorAll("[data-price-download]").forEach((link) => {
   link.href = DOWNLOAD_URL;
 });
-
-const availabilityCard = document.querySelector("[data-availability-card]");
-const heroVisual = availabilityCard?.closest(".hero-visual");
-
-if (availabilityCard && heroVisual) {
-  let pinAt = 0;
-
-  const measureAvailabilityCard = () => {
-    const wasPinned = availabilityCard.classList.contains("availability-card-pinned");
-    if (wasPinned) availabilityCard.classList.remove("availability-card-pinned");
-
-    const cardRect = availabilityCard.getBoundingClientRect();
-    const header = document.querySelector(".site-header");
-    const headerHeight = header?.getBoundingClientRect().height ?? 86;
-    pinAt = Math.max(0, window.scrollY + cardRect.top - headerHeight - PIN_GAP_PX);
-
-    if (wasPinned) availabilityCard.classList.add("availability-card-pinned");
-  };
-
-  const updateAvailabilityCard = () => {
-    availabilityCard.classList.toggle(
-      "availability-card-pinned",
-      window.scrollY >= pinAt,
-    );
-  };
-
-  measureAvailabilityCard();
-  updateAvailabilityCard();
-  window.addEventListener("scroll", updateAvailabilityCard, { passive: true });
-  window.addEventListener("resize", measureAvailabilityCard);
-}
 
 void refreshPriceMeta();
 window.setInterval(refreshPriceMeta, REFRESH_INTERVAL_MS);
