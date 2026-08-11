@@ -1,3 +1,4 @@
+import BlurText from "./BlurText";
 import { priceInfo } from "./price-config";
 import {
   LivePriceDate,
@@ -36,9 +37,10 @@ export default function Home() {
       <section className="hero shell" id="top">
         <div className="hero-copy">
           <div className="eyebrow"><span>Техника</span><span>Комплектующие</span><span>Сервис</span></div>
-          <h1>
-            Технологии,
-            <br />которые <em>работают.</em>
+          <h1 aria-label="Технологии, которые работают.">
+            <BlurText text="Технологии," delay={200} animateBy="words" direction="top" className="hero-blur-line" />
+            <BlurText text="которые" delay={350} animateBy="words" direction="top" className="hero-blur-line" />
+            <BlurText text="работают." delay={500} animateBy="words" direction="top" className="hero-blur-line hero-blur-accent" />
           </h1>
           <p className="hero-lead">
             Компьютеры, комплектующие и периферия для дома и бизнеса — с понятными
