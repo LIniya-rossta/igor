@@ -145,8 +145,8 @@ test("renders the UnB price landing page and social metadata", async () => {
   assert.match(html, /\/api\/price\/download/);
   assert.match(html, /https:\/\/unb\.example\/og-unb\.png/);
   assert.match(html, /Поддержка XLS и XLSX/);
-  assert.match(html, /https:\/\/wa\.me\/996555342425\?text=/);
-  assert.match(html, /Написать в WhatsApp/);
+  assert.match(html, /https:\/\/t\.me\/unb_computers/);
+  assert.match(html, /Написать в Telegram/);
   assert.match(html, /<meta name="color-scheme" content="only light"\s*\/?>/i);
   assert.match(html, /<meta name="darkreader-lock"\s*\/?>/i);
   assert.match(html, /<meta name="theme-color" content="#f3f0e8"\s*\/?>/i);
@@ -178,11 +178,11 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(html, /<title>UnB computers — компьютеры и комплектующие<\/title>/i);
   assert.match(html, /data-price-download/);
   assert.match(html, /\.\/styles\.css/);
-  assert.match(html, /https:\/\/wa\.me\/996555342425\?text=/);
+  assert.match(html, /https:\/\/t\.me\/unb_computers/);
   assert.doesNotMatch(html, /WhatsApp: \+996 555 342 425/);
   assert.match(rootHtml, /\.\/docs\/styles\.css/);
   assert.match(rootHtml, /\.\/docs\/app\.js/);
-  assert.match(rootHtml, /https:\/\/wa\.me\/996555342425\?text=/);
+  assert.match(rootHtml, /https:\/\/t\.me\/unb_computers/);
   assert.doesNotMatch(rootHtml, /WhatsApp: \+996 555 342 425/);
   assert.match(rootHtml, /<meta name="color-scheme" content="only light"\s*\/?>/i);
   assert.match(rootHtml, /<meta name="darkreader-lock"\s*\/?>/i);

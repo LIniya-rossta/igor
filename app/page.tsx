@@ -6,11 +6,7 @@ import {
   LivePriceFormat,
 } from "./live-price";
 
-const whatsappUrl =
-  "https://wa.me/996555342425?text=" +
-  encodeURIComponent(
-    "Здравствуйте! Пишу с сайта UnB computers. Хочу уточнить цену и наличие.",
-  );
+const telegramUrl = "https://t.me/unb_computers";
 
 export default function Home() {
   return (
@@ -126,12 +122,12 @@ export default function Home() {
           <div className="contact-side">
             <p>Напишите менеджеру, чтобы уточнить наличие, финальную цену и подобрать подходящее решение.</p>
             <a
-              href={whatsappUrl}
+              href={telegramUrl}
               className="contact-button"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Написать в WhatsApp <span aria-hidden="true">↗</span>
+              Написать в Telegram <span aria-hidden="true">↗</span>
             </a>
           </div>
         </div>
