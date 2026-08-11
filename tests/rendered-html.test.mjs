@@ -144,6 +144,7 @@ test("renders the UnB price landing page and social metadata", async () => {
   assert.match(html, /Скачать актуальный прайс/);
   assert.match(html, /\/api\/price\/download/);
   assert.match(html, /https:\/\/liniya-rossta\.github\.io\/igor\/api\/price\/download/);
+  assert.match(html, /data-availability-card/);
   assert.match(html, /https:\/\/unb\.example\/og-unb\.png/);
   assert.match(html, /Поддержка XLS и XLSX/);
   assert.match(html, /https:\/\/t\.me\/unb_computers/);
@@ -184,11 +185,13 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(html, /data-price-download/);
   assert.match(html, /\.\/styles\.css/);
   assert.match(html, /https:\/\/liniya-rossta\.github\.io\/igor\/api\/price\/download/);
+  assert.match(html, /data-availability-card/);
   assert.match(html, /https:\/\/t\.me\/unb_computers/);
   assert.doesNotMatch(html, /WhatsApp: \+996 555 342 425/);
   assert.match(rootHtml, /\.\/docs\/styles\.css/);
   assert.match(rootHtml, /\.\/docs\/app\.js/);
   assert.match(rootHtml, /https:\/\/liniya-rossta\.github\.io\/igor\/api\/price\/download/);
+  assert.match(rootHtml, /data-availability-card/);
   assert.match(
     githubPagesDownload,
     /https:\/\/unb-computers-kg\.zilolatashievaz\.chatgpt\.site\/api\/price\/download/,
@@ -200,6 +203,7 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(rootHtml, /<meta name="theme-color" content="#f3f0e8"\s*\/?>/i);
   assert.match(script, /unb-computers-kg\.zilolatashievaz\.chatgpt\.site/);
   assert.match(script, /\/api\/price\/meta/);
+  assert.match(script, /availability-card-pinned/);
   assert.match(staticStyles, /@media \(max-width: 640px\)/);
   assert.match(staticStyles, /@media \(max-width: 380px\)/);
   assert.match(staticStyles, /color-scheme: only light/);

@@ -1,4 +1,5 @@
 import { priceInfo } from "./price-config";
+import AvailabilityCard from "./availability-card";
 import {
   LivePriceDate,
   LivePriceFileLine,
@@ -63,10 +64,7 @@ export default function Home() {
               height="627"
             />
           </div>
-          <div className="availability-card">
-            <span className="availability-icon" aria-hidden="true">✓</span>
-            <span><b>Прайс актуален</b><small><LivePriceDate /></small></span>
-          </div>
+          <AvailabilityCard />
           <div className="visual-caption"><span>UNB / 2026</span><span>BISHKEK, KG</span></div>
         </div>
       </section>
