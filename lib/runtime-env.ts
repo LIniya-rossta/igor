@@ -1,5 +1,11 @@
-import { env } from "cloudflare:workers";
 import { getRailwayRuntime, isRailwayNodeRuntime } from "@/lib/railway-runtime";
+
+// Keep the Cloudflare binding lazy: Railway runs the same route modules in
+// Node, where the `cloudflare:` URL scheme is not understood by Node's loader.
+// The dynamic import is evaluated only in the Cloudflare deployment path.
+const cloudflareEnv = isRailwayNodeRuntime()
+  ? null
+  : ((await import("cloudflare:workers")).env as unknown as RuntimeEnv);
 
 export interface RuntimeEnv {
   DB: D1Database;
@@ -16,5 +22,8 @@ export function getRuntimeEnv(): RuntimeEnv {
   if (isRailwayNodeRuntime()) {
     return getRailwayRuntime() as unknown as RuntimeEnv;
   }
-  return env as unknown as RuntimeEnv;
+  if (!cloudflareEnv) {
+    throw new Error("Cloudflare runtime environment is unavailable");
+  }
+  return cloudflareEnv;
 }
