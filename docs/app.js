@@ -1,4 +1,4 @@
-const API_ORIGIN = "https://unb-computers.up.railway.app";
+const API_ORIGIN = "https://unb-computers-kg.zilolatashievaz.chatgpt.site";
 const META_URL = `${API_ORIGIN}/api/price/meta`;
 const NEW_ITEMS_URL = `${API_ORIGIN}/api/price/new-items`;
 const DOWNLOAD_URL = `${API_ORIGIN}/api/price/download`;
