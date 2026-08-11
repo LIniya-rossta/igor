@@ -29,6 +29,11 @@ import {
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import { telegramMethodUrl } from "@/lib/telegram-api";
 import {
+  addAuthorizedChatId,
+  parseAuthorizedChatIds,
+  TELEGRAM_ALLOWED_CHATS_SETTING,
+} from "@/lib/telegram-access";
+import {
   formatFileSize,
 } from "@/lib/xlsx";
 
@@ -195,6 +200,37 @@ async function getOwnerChatId() {
   return setting?.value ?? null;
 }
 
+async function getAuthorizedChatIds() {
+  const owner = await getOwnerChatId();
+  const [setting] = await getDb()
+    .select({ value: appSettings.value })
+    .from(appSettings)
+    .where(eq(appSettings.key, TELEGRAM_ALLOWED_CHATS_SETTING))
+    .limit(1);
+  return new Set([owner, ...parseAuthorizedChatIds(setting?.value)].filter(Boolean));
+}
+
+async function isAuthorizedChat(chatId: string) {
+  return (await getAuthorizedChatIds()).has(chatId);
+}
+
+async function grantChatAccess(chatId: string) {
+  const db = getDb();
+  const [setting] = await db
+    .select({ value: appSettings.value })
+    .from(appSettings)
+    .where(eq(appSettings.key, TELEGRAM_ALLOWED_CHATS_SETTING))
+    .limit(1);
+  const value = addAuthorizedChatId(setting?.value, chatId);
+  await db
+    .insert(appSettings)
+    .values({ key: TELEGRAM_ALLOWED_CHATS_SETTING, value, updatedAt: Date.now() })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value, updatedAt: Date.now() },
+    });
+}
+
 async function claimBlockedUntil(chatId: string) {
   const [attempt] = await getDb()
     .select({ blockedUntil: claimAttempts.blockedUntil })
@@ -305,13 +341,11 @@ async function claimOwner(
   directUploadEnabled: boolean,
 ) {
   const existingOwner = await getOwnerChatId();
-  if (existingOwner) {
+  if (existingOwner === chatId) {
     await trySendMessage(
       runtimeEnv,
       chatId,
-      existingOwner === chatId
-        ? "Этот чат уже подключён как владелец. Отправьте /help, чтобы увидеть команды."
-        : "Доступ закрыт: у бота уже есть владелец.",
+      "Этот чат уже подключён как владелец. Отправьте /help, чтобы увидеть команды.",
     );
     return;
   }
@@ -329,6 +363,17 @@ async function claimOwner(
       runtimeEnv,
       chatId,
       blockedUntil ? claimBlockedMessage(blockedUntil) : "Неверный код подключения.",
+    );
+    return;
+  }
+
+  if (existingOwner) {
+    await grantChatAccess(chatId);
+    await getDb().delete(claimAttempts).where(eq(claimAttempts.chatId, chatId));
+    await trySendMessage(
+      runtimeEnv,
+      chatId,
+      `Готово — этот Telegram-чат получил доступ к прайсу.\n\n${helpText(siteUrl(runtimeEnv, requestOrigin), directUploadEnabled)}`,
     );
     return;
   }
@@ -863,7 +908,7 @@ async function handleMessage(
     await trySendMessage(runtimeEnv, chatId, "Бот ещё не подключён. Владельцу нужно отправить команду /claim и личный код подключения.");
     return;
   }
-  if (owner !== chatId) {
+  if (!(await isAuthorizedChat(chatId))) {
     await trySendMessage(runtimeEnv, chatId, "Доступ закрыт: этот бот управляется владельцем UnB computers.");
     return;
   }
@@ -924,7 +969,7 @@ async function handleCallback(
 ) {
   const chatId = callback.message ? String(callback.message.chat.id) : String(callback.from.id);
   const owner = await getOwnerChatId();
-  if (!owner || owner !== chatId || String(callback.from.id) !== owner) {
+  if (!owner || !(await isAuthorizedChat(chatId)) || String(callback.from.id) !== chatId) {
     await answerCallback(runtimeEnv, callback.id, "Нет доступа");
     return;
   }
