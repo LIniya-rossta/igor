@@ -3,5 +3,5 @@ export const priceInfo = {
   version: "06.08.26",
   format: "XLS / XLSX",
   updateFrequency: "ежедневно",
-  downloadUrl: "/api/price/download",
+  downloadUrl: "https://liniya-rossta.github.io/igor/api/price/download",
 } as const;
