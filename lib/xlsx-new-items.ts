@@ -1,4 +1,8 @@
 import { excelFileFormat } from "./excel-file";
+import {
+  extractNewProductNamesFromXlsBytes,
+  extractNewProductNamesFromXlsObject,
+} from "./xls";
 
 /**
  * The new-items marker is intentionally based on the cell fill, not on a
@@ -265,7 +269,7 @@ function xmlText(xml: string) {
   ).replace(/\s+/g, " ").trim();
 }
 
-function greenFillColor(attrs: string) {
+function markerFillColor(attrs: string) {
   const rgb = xmlAttribute(attrs, "rgb");
   if (rgb) {
     const value = rgb.slice(-6).toUpperCase();
@@ -273,10 +277,15 @@ function greenFillColor(attrs: string) {
     const red = Number.parseInt(value.slice(0, 2), 16);
     const green = Number.parseInt(value.slice(2, 4), 16);
     const blue = Number.parseInt(value.slice(4, 6), 16);
-    return green - red >= 8 && green - blue >= -10;
+    // The owner marks new rows with a green fill. Some Excel exports (and
+    // the current supplier workbook) serialize that marker as bright yellow,
+    // so accept both marker colors while ignoring ordinary pale table fills.
+    const greenMarker = green - red >= 8 && green - blue >= -10;
+    const yellowMarker = red >= 200 && green >= 180 && blue <= 170;
+    return greenMarker || yellowMarker;
   }
   const indexed = Number(xmlAttribute(attrs, "indexed"));
-  if (indexed === 3 || indexed === 11) return true;
+  if (indexed === 3 || indexed === 5 || indexed === 11) return true;
   // In the default Office theme accent3 (theme 6) is green. Custom themes
   // commonly keep the same slot for their green accent.
   return xmlAttribute(attrs, "theme") === "6";
@@ -287,7 +296,7 @@ function greenFillIds(stylesXml: string) {
   const result = new Set<number>();
   let fillIndex = 0;
   for (const match of fills.matchAll(/<fill\b[^>]*>([\s\S]*?)<\/fill>/g)) {
-    if (greenFillColor(match[1])) result.add(fillIndex);
+    if (markerFillColor(match[1])) result.add(fillIndex);
     fillIndex += 1;
   }
   return result;
@@ -403,6 +412,7 @@ export async function extractNewProductNamesFromXlsxObject(
 }
 
 export async function extractNewProductNamesFromExcelBytes(bytes: Uint8Array, filename: string) {
+  if (excelFileFormat(filename) === "xls") return extractNewProductNamesFromXlsBytes(bytes);
   if (excelFileFormat(filename) !== "xlsx") return [];
   return extractNewProductNamesFromXlsxBytes(bytes);
 }
@@ -412,6 +422,9 @@ export async function extractNewProductNamesFromExcelObject(
   key: string,
   filename: string,
 ) {
+  if (excelFileFormat(filename) === "xls") {
+    return extractNewProductNamesFromXlsObject(bucket, key);
+  }
   if (excelFileFormat(filename) !== "xlsx") return [];
   return extractNewProductNamesFromXlsxObject(bucket, key);
 }

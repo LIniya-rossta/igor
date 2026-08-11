@@ -875,17 +875,17 @@ async function validateBiff8(stream: CompoundStream) {
   return globalsEnded && boundSheets.size > 0;
 }
 
-async function validateReader(reader: RandomReader) {
+async function openWorkbookStream(reader: RandomReader) {
   const headerBytes = await reader.read(0, HEADER_BYTES);
   const header = parseHeader(headerBytes, reader.size);
-  if (!header) return false;
+  if (!header) return null;
   if (header.majorVersion === 4) {
     const padding = await reader.read(HEADER_BYTES, header.sectorSize - HEADER_BYTES);
-    if (!allZero(padding)) return false;
+    if (!allZero(padding)) return null;
   }
 
   const compound = new CompoundFile(reader, header);
-  if (!(await compound.initializeFat())) return false;
+  if (!(await compound.initializeFat())) return null;
 
   const maximumDirectorySectors = Math.min(
     header.totalSectors,
@@ -898,9 +898,9 @@ async function validateReader(reader: RandomReader) {
     exactDirectorySectors,
     maximumDirectorySectors,
   );
-  if (!directoryChain || !compound.claim(directoryChain, 1)) return false;
+  if (!directoryChain || !compound.claim(directoryChain, 1)) return null;
   const directory = await compound.readDirectory(directoryChain);
-  if (!directory) return false;
+  if (!directory) return null;
 
   let miniFatChain = new Uint32Array();
   if (header.miniFatSectorCount > 0) {
@@ -909,7 +909,7 @@ async function validateReader(reader: RandomReader) {
       header.miniFatSectorCount,
       header.miniFatSectorCount,
     );
-    if (!chain || !compound.claim(chain, 2)) return false;
+    if (!chain || !compound.claim(chain, 2)) return null;
     miniFatChain = chain;
   }
 
@@ -919,7 +919,7 @@ async function validateReader(reader: RandomReader) {
       directory.root.size > MAX_ROOT_MINI_STREAM_BYTES ||
       miniFatChain.length === 0
     ) {
-      return false;
+      return null;
     }
     const rootSectorCount = Math.ceil(directory.root.size / header.sectorSize);
     const chain = await compound.walkFatChain(
@@ -927,15 +927,15 @@ async function validateReader(reader: RandomReader) {
       rootSectorCount,
       rootSectorCount,
     );
-    if (!chain || !compound.claim(chain, 3)) return false;
+    if (!chain || !compound.claim(chain, 3)) return null;
     rootSectors = chain;
   } else if (directory.root.startSector !== ENDOFCHAIN) {
-    return false;
+    return null;
   }
 
   let workbookStream: CompoundStream;
   if (directory.workbook.size < MINI_STREAM_CUTOFF) {
-    if (miniFatChain.length === 0 || rootSectors.length === 0) return false;
+    if (miniFatChain.length === 0 || rootSectors.length === 0) return null;
     const rootMiniSectorCount = Math.ceil(directory.root.size / MINI_SECTOR_BYTES);
     const workbookMiniSectorCount = Math.ceil(
       directory.workbook.size / MINI_SECTOR_BYTES,
@@ -946,7 +946,7 @@ async function validateReader(reader: RandomReader) {
       miniFatChain,
       rootMiniSectorCount,
     );
-    if (!miniChain) return false;
+    if (!miniChain) return null;
     workbookStream = new CompoundStream(
       directory.workbook.size,
       compound,
@@ -962,7 +962,7 @@ async function validateReader(reader: RandomReader) {
       workbookSectorCount,
       workbookSectorCount,
     );
-    if (!workbookChain || !compound.claim(workbookChain, 4)) return false;
+    if (!workbookChain || !compound.claim(workbookChain, 4)) return null;
     workbookStream = new CompoundStream(
       directory.workbook.size,
       compound,
@@ -970,7 +970,321 @@ async function validateReader(reader: RandomReader) {
     );
   }
 
+  return workbookStream;
+}
+
+async function validateReader(reader: RandomReader) {
+  const workbookStream = await openWorkbookStream(reader);
+  if (!workbookStream) return false;
   return validateBiff8(workbookStream);
+}
+
+type BiffXf = {
+  fillPattern: number;
+  patternColour: number;
+  backgroundColour: number;
+};
+
+type BiffRecord = {
+  type: number;
+  payload: Uint8Array;
+  nextOffset: number;
+};
+
+const BIFF_XF = 0x00e0;
+const BIFF_SST = 0x00fc;
+const BIFF_CONTINUE = 0x003c;
+const BIFF_ROW = 0x0208;
+const BIFF_LABEL = 0x0204;
+const BIFF_LABEL_SST = 0x00fd;
+const BIFF_NUMBER = 0x0203;
+const BIFF_RK = 0x027e;
+const BIFF_MUL_RK = 0x00bd;
+const BIFF_FORMULA = 0x0006;
+
+async function readBiffRecord(stream: CompoundStream, offset: number): Promise<BiffRecord | null> {
+  if (offset < 0 || offset + 4 > stream.size) return null;
+  const header = await stream.read(offset, 4);
+  const headerView = new DataView(header.buffer, header.byteOffset, header.byteLength);
+  const type = headerView.getUint16(0, true);
+  const length = headerView.getUint16(2, true);
+  const nextOffset = offset + 4 + length;
+  if (length > MAX_BIFF_RECORD_BYTES || nextOffset > stream.size) return null;
+  return { type, payload: await stream.read(offset + 4, length), nextOffset };
+}
+
+class BiffStringCursor {
+  private segmentIndex = 0;
+  private offset = 0;
+  private compressed = true;
+  private readonly segments: Uint8Array[];
+
+  constructor(segments: Uint8Array[]) {
+    this.segments = segments;
+  }
+
+  private ensureByte() {
+    while (this.segmentIndex < this.segments.length) {
+      const segment = this.segments[this.segmentIndex];
+      if (this.offset < segment.length) return true;
+      this.segmentIndex += 1;
+      this.offset = 0;
+      if (this.segmentIndex >= this.segments.length) return false;
+      // CONTINUE records begin with the encoding flag for the text that
+      // follows them. The first SST segment has no such prefix.
+      const continuation = this.segments[this.segmentIndex];
+      if (continuation.length === 0) continue;
+      this.compressed = (continuation[0] & 0x01) === 0;
+      this.offset = 1;
+    }
+    return false;
+  }
+
+  readByte() {
+    if (!this.ensureByte()) throw new Error("Truncated SST record");
+    return this.segments[this.segmentIndex][this.offset++];
+  }
+
+  readUint16() {
+    return this.readByte() | (this.readByte() << 8);
+  }
+
+  readUint32() {
+    return (
+      this.readByte() |
+      (this.readByte() << 8) |
+      (this.readByte() << 16) |
+      (this.readByte() << 24)
+    ) >>> 0;
+  }
+
+  readChars(count: number, compressed: boolean) {
+    this.compressed = compressed;
+    const output: string[] = [];
+    for (let index = 0; index < count; index += 1) {
+      if (!this.ensureByte()) throw new Error("Truncated SST string");
+      const isCompressed = this.compressed ?? compressed;
+      if (isCompressed) {
+        output.push(String.fromCharCode(this.readByte()));
+      } else {
+        output.push(String.fromCharCode(this.readByte() | (this.readByte() << 8)));
+      }
+    }
+    return output.join("");
+  }
+
+  skip(count: number) {
+    for (let index = 0; index < count; index += 1) this.readByte();
+  }
+}
+
+function parseSharedStrings(segments: Uint8Array[]) {
+  const cursor = new BiffStringCursor(segments);
+  const total = cursor.readUint32();
+  const unique = cursor.readUint32();
+  if (total > 2_000_000 || unique > total) throw new Error("Invalid SST counts");
+  const strings: string[] = [];
+  for (let index = 0; index < unique; index += 1) {
+    const characterCount = cursor.readUint16();
+    const flags = cursor.readByte();
+    const richRuns = (flags & 0x08) !== 0 ? cursor.readUint16() : 0;
+    const extensionBytes = (flags & 0x04) !== 0 ? cursor.readUint32() : 0;
+    const compressed = (flags & 0x01) === 0;
+    const value = cursor.readChars(characterCount, compressed);
+    cursor.skip(richRuns * 4 + extensionBytes);
+    strings.push(value);
+  }
+  return strings;
+}
+
+function parseBiffXf(payload: Uint8Array): BiffXf | null {
+  if (payload.length !== 20) return null;
+  const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+  const borderBackground = view.getUint32(14, true);
+  const fillPattern = (borderBackground >>> 26) & 0x3f;
+  const colourWord = view.getUint16(18, true);
+  return {
+    fillPattern,
+    patternColour: colourWord & 0x7f,
+    backgroundColour: (colourWord >>> 7) & 0x7f,
+  };
+}
+
+function defaultBiffColour(index: number) {
+  const standard: Record<number, [number, number, number]> = {
+    8: [0, 0, 0],
+    9: [255, 255, 255],
+    10: [255, 0, 0],
+    11: [0, 255, 0],
+    12: [0, 0, 255],
+    13: [255, 255, 0],
+    14: [255, 0, 255],
+    15: [0, 255, 255],
+    16: [128, 0, 0],
+    17: [0, 128, 0],
+    18: [0, 0, 128],
+    19: [128, 128, 0],
+    20: [128, 0, 128],
+    21: [0, 128, 128],
+    22: [192, 192, 192],
+    23: [128, 128, 128],
+  };
+  return standard[index] ?? null;
+}
+
+function isMarkerColour(rgb: [number, number, number] | null) {
+  if (!rgb) return false;
+  const [red, green, blue] = rgb;
+  return (
+    (green - red >= 8 && green - blue >= -10) ||
+    (red >= 200 && green >= 180 && blue <= 170)
+  );
+}
+
+function biffStringFromLabel(payload: Uint8Array) {
+  if (payload.length < 9) return null;
+  const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+  const count = view.getUint16(6, true);
+  const flags = payload[8];
+  const bytes = (flags & 0x01) === 0 ? count : count * 2;
+  if (9 + bytes > payload.length) return null;
+  return (flags & 0x01) === 0
+    ? String.fromCharCode(...payload.subarray(9, 9 + bytes))
+    : utf16Decoder.decode(payload.subarray(9, 9 + bytes));
+}
+
+function numericCellType(type: number) {
+  return type === BIFF_NUMBER || type === BIFF_RK || type === BIFF_MUL_RK || type === BIFF_FORMULA;
+}
+
+async function scanBiffNewItems(stream: CompoundStream) {
+  const xfs: BiffXf[] = [];
+  const palette = new Map<number, [number, number, number]>();
+  const sharedSegments: Uint8Array[] = [];
+  const sheetOffsets: number[] = [];
+  let globalsEnd = -1;
+  let offset = 0;
+  while (offset < stream.size) {
+    const record = await readBiffRecord(stream, offset);
+    if (!record) return [];
+    if (record.type === BIFF_XF) {
+      const xf = parseBiffXf(record.payload);
+      if (xf) xfs.push(xf);
+    } else if (record.type === BIFF_BOUNDSHEET) {
+      const boundSheet = parseBoundSheet(record.payload);
+      if (boundSheet) sheetOffsets.push(boundSheet.offset);
+    } else if (record.type === BIFF_SST) {
+      sharedSegments.push(record.payload);
+      let continuationOffset = record.nextOffset;
+      while (continuationOffset < stream.size) {
+        const continuation = await readBiffRecord(stream, continuationOffset);
+        if (!continuation || continuation.type !== BIFF_CONTINUE) break;
+        sharedSegments.push(continuation.payload);
+        continuationOffset = continuation.nextOffset;
+      }
+      offset = continuationOffset;
+      continue;
+    } else if (record.type === 0x0092 && record.payload.length >= 2) {
+      const view = new DataView(record.payload.buffer, record.payload.byteOffset, record.payload.byteLength);
+      const count = view.getUint16(0, true);
+      if (count > 56 || 2 + count * 4 > record.payload.length) return [];
+      for (let index = 0; index < count; index += 1) {
+        const value = view.getUint32(2 + index * 4, true);
+        palette.set(8 + index, [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff]);
+      }
+    } else if (record.type === BIFF_EOF) {
+      globalsEnd = record.nextOffset;
+      break;
+    }
+    offset = record.nextOffset;
+  }
+  if (globalsEnd < 0 || sheetOffsets.length === 0) return [];
+
+  const strings = sharedSegments.length ? parseSharedStrings(sharedSegments) : [];
+  const markerXfs = new Set<number>();
+  for (let index = 0; index < xfs.length; index += 1) {
+    const xf = xfs[index];
+    if (!xf || xf.fillPattern === 0) continue;
+    const pattern = palette.get(xf.patternColour) ?? defaultBiffColour(xf.patternColour);
+    const background = palette.get(xf.backgroundColour) ?? defaultBiffColour(xf.backgroundColour);
+    if (isMarkerColour(pattern) || isMarkerColour(background)) markerXfs.add(index);
+  }
+  if (markerXfs.size === 0) return [];
+
+  const sheetEnd = sheetOffsets[1] ?? stream.size;
+  const names: string[] = [];
+  const rows = new Map<number, { name: string; numeric: boolean; marked: boolean }>();
+  offset = sheetOffsets[0];
+  while (offset < sheetEnd) {
+    const record = await readBiffRecord(stream, offset);
+    if (!record) return [];
+    const payload = record.payload;
+    if (record.type === BIFF_ROW && payload.length >= 16) {
+      const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+      const row = view.getUint16(0, true);
+      const xf = view.getUint16(14, true);
+      const current = rows.get(row) ?? { name: "", numeric: false, marked: false };
+      current.marked ||= markerXfs.has(xf);
+      rows.set(row, current);
+    } else if ((record.type === BIFF_LABEL_SST || record.type === BIFF_LABEL) && payload.length >= 7) {
+      const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+      const row = view.getUint16(0, true);
+      const column = view.getUint16(2, true);
+      const xf = view.getUint16(4, true);
+      const current = rows.get(row) ?? { name: "", numeric: false, marked: false };
+      current.marked ||= markerXfs.has(xf);
+      if (column === 1) {
+        const value = record.type === BIFF_LABEL_SST
+          ? (payload.length >= 10 ? strings[view.getUint32(6, true)] ?? "" : "")
+          : biffStringFromLabel(payload) ?? "";
+        current.name = value.replace(/\s+/g, " ").trim();
+      }
+      rows.set(row, current);
+    } else if (numericCellType(record.type) && payload.length >= 6) {
+      const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+      const row = view.getUint16(0, true);
+      const column = view.getUint16(2, true);
+      const xf = view.getUint16(4, true);
+      const current = rows.get(row) ?? { name: "", numeric: false, marked: false };
+      current.marked ||= markerXfs.has(xf);
+      if (column === 0 || column === 2 || column === 3) current.numeric = true;
+      rows.set(row, current);
+    }
+    offset = record.nextOffset;
+  }
+  for (const row of rows.values()) {
+    if (row.marked && row.numeric && row.name && !names.includes(row.name)) {
+      names.push(row.name);
+      if (names.length >= 80) break;
+    }
+  }
+  return names;
+}
+
+export async function extractNewProductNamesFromXlsBytes(bytes: Uint8Array) {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1536 || bytes.byteLength > MAX_XLS_BYTES) {
+    return [];
+  }
+  try {
+    const stream = await openWorkbookStream(new ByteReader(bytes));
+    return stream ? await scanBiffNewItems(stream) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function extractNewProductNamesFromXlsObject(
+  bucket: R2Bucket,
+  key: string,
+) {
+  try {
+    const head = await bucket.head(key);
+    if (!head || head.size < 1536 || head.size > MAX_XLS_OBJECT_BYTES) return [];
+    const stream = await openWorkbookStream(new R2PagedReader(bucket, key, head.size));
+    return stream ? await scanBiffNewItems(stream) : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function isValidXlsBytes(bytes: Uint8Array) {
