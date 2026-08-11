@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { priceInfo } from "./price-config";
+import AnimatedList from "./AnimatedList";
 import CountUp from "./CountUp";
 
 type PriceMeta = {
@@ -150,14 +151,16 @@ export function LiveNewItems() {
           </span>
         </div>
       </div>
-      <div className="new-items-list">
-        {items.length ? items.map((item, index) => (
-          <div className="new-item" key={`${item}-${index}`}>
-            <span className="new-item-mark" aria-hidden="true" />
-            <span>{item}</span>
-          </div>
-        )) : <p className="new-items-empty">Новые товары появятся после следующего обновления прайса.</p>}
-      </div>
+      {items.length ? (
+        <AnimatedList
+          items={items}
+          showGradients
+          enableArrowNavigation
+          displayScrollbar
+        />
+      ) : (
+        <div className="new-items-empty">Новые товары появятся после следующего обновления прайса.</div>
+      )}
     </section>
   );
 }

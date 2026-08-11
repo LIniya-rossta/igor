@@ -46,6 +46,29 @@ function animateItemsCount(count) {
   });
 }
 
+function enableStaticAnimatedList(list) {
+  if (list.dataset.keyboardReady === "true") return;
+  list.dataset.keyboardReady = "true";
+  list.addEventListener("keydown", (event) => {
+    const items = [...list.querySelectorAll("[data-animated-index]")];
+    if (!items.length) return;
+    const active = items.findIndex((item) => item.classList.contains("is-selected"));
+    const current = active < 0 ? 0 : active;
+    let next = null;
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") next = Math.min(items.length - 1, current + 1);
+    if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = Math.max(0, current - 1);
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = items.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    items.forEach((item) => item.classList.remove("is-selected"));
+    const selected = items[next];
+    selected.classList.add("is-selected");
+    selected.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    selected.focus({ preventScroll: true });
+  });
+}
+
 function applyMeta(meta) {
   const filename = typeof meta.filename === "string" ? meta.filename : "UnB-price.xlsx";
   const updated = typeof meta.updated === "string" ? meta.updated : "6 августа 2026";
@@ -72,6 +95,7 @@ function applyNewItems(payload) {
   const section = document.querySelector("#new-items");
   const list = document.querySelector("[data-new-items-list]");
   if (!section || !list) return;
+  enableStaticAnimatedList(list);
 
   const items = Array.isArray(payload.items)
     ? payload.items.filter((item) => typeof item === "string" && item.trim().length > 0)
@@ -79,17 +103,24 @@ function applyNewItems(payload) {
 
   animateItemsCount(items.length);
 
-  const rows = items.map((item) => {
-      const row = document.createElement("div");
-      row.className = "new-item";
+  const rows = items.map((item, index) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "animated-list-item";
+      row.dataset.animatedIndex = String(index);
+      row.style.animationDelay = `${Math.min(index, 12) * 45}ms`;
       const mark = document.createElement("span");
-      mark.className = "new-item-mark";
+      mark.className = "animated-list-mark";
       mark.setAttribute("aria-hidden", "true");
       const name = document.createElement("span");
       name.textContent = item.trim();
       row.append(mark, name);
+      row.addEventListener("click", () => {
+        list.querySelectorAll(".is-selected").forEach((selected) => selected.classList.remove("is-selected"));
+        row.classList.add("is-selected");
+      });
       return row;
-    });
+  });
   if (!rows.length) {
     const empty = document.createElement("p");
     empty.className = "new-items-empty";
