@@ -167,6 +167,10 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
     new URL("../index.html", import.meta.url),
     "utf8",
   );
+  const githubPagesDownload = await readFile(
+    new URL("../api/price/download/index.html", import.meta.url),
+    "utf8",
+  );
   const staticStyles = await readFile(
     new URL("../docs/styles.css", import.meta.url),
     "utf8",
@@ -185,6 +189,10 @@ test("serves a GitHub Pages frontend backed by the public price API", async () =
   assert.match(rootHtml, /\.\/docs\/styles\.css/);
   assert.match(rootHtml, /\.\/docs\/app\.js/);
   assert.match(rootHtml, /https:\/\/liniya-rossta\.github\.io\/igor\/api\/price\/download/);
+  assert.match(
+    githubPagesDownload,
+    /https:\/\/unb-computers-kg\.zilolatashievaz\.chatgpt\.site\/api\/price\/download/,
+  );
   assert.match(rootHtml, /https:\/\/t\.me\/unb_computers/);
   assert.doesNotMatch(rootHtml, /WhatsApp: \+996 555 342 425/);
   assert.match(rootHtml, /<meta name="color-scheme" content="only light"\s*\/?>/i);
