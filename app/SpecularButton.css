@@ -33,6 +33,7 @@
 .specular-button__label { position: relative; z-index: 2; }
 
 .specular-price-button {
+  overflow: hidden;
   min-height: 68px;
   padding: 0 34px;
   background: var(--yellow);
@@ -41,11 +42,30 @@
   font-weight: 850;
   box-shadow: none;
 }
+.specular-price-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 38%, rgba(255,255,255,.48) 49%, rgba(255,250,216,.76) 51%, transparent 62%);
+  background-size: 235% 100%;
+  background-position: 180% 0;
+  mix-blend-mode: screen;
+  animation: specular-button-sweep 3.6s cubic-bezier(.45, 0, .55, 1) infinite;
+}
 .specular-price-button:hover { background: var(--yellow); }
 .specular-price-button:active { transform: none; }
 .specular-price-button .specular-button__label { display: inline-flex; align-items: center; justify-content: space-between; gap: 42px; width: 100%; }
 .specular-price-button__arrow { line-height: 1; font-size: 1.2em; }
 .specular-price-button--download { width: calc(100% - 56px); margin: 26px 28px 0; font-size: 14px; font-weight: 900; }
+
+@keyframes specular-button-sweep {
+  0%, 18% { background-position: 180% 0; opacity: 0; }
+  35% { opacity: .82; }
+  58% { opacity: .42; }
+  78%, 100% { background-position: -80% 0; opacity: 0; }
+}
 
 @media (max-width: 640px) {
   .specular-price-button--hero { width: 100%; min-height: 62px; padding-inline: 24px; font-size: 14px; }
