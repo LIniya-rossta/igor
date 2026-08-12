@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import "./LineSidebar.css";
+import "./SpecularButton.css";
 
 const title = "UnB computers — компьютеры и комплектующие";
 const description =

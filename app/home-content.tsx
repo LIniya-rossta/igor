@@ -3,6 +3,7 @@
 import BlurText from "./BlurText";
 import LanguageToggle from "@/components/ui/language-toggle";
 import { useLanguage } from "@/components/ui/language-toggle";
+import SpecularButton from "@/components/ui/specular-button";
 import { siteCopy } from "@/lib/site-copy";
 import { priceInfo } from "./price-config";
 import LightRays from "./LightRays";
@@ -23,6 +24,19 @@ type HomeContentProps = {
 export default function HomeContent({ initialNewItems }: HomeContentProps) {
   const language = useLanguage();
   const copy = siteCopy[language];
+
+  const scrollToPrice = () => {
+    document.getElementById("price")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const downloadPrice = () => {
+    const link = document.createElement("a");
+    link.href = priceInfo.downloadUrl;
+    link.download = "";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   return (
     <main>
@@ -63,10 +77,26 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           </h1>
           <p className="hero-lead">{copy.heroLead}</p>
           <div className="hero-actions">
-            <a className="button button-primary" href="#price">
-              <span className="button-label">{copy.downloadPrice}</span>
-              <span className="button-icon" aria-hidden="true">↓</span>
-            </a>
+            <SpecularButton
+              className="specular-price-button specular-price-button--hero"
+              radius={2}
+              tint="#ffbd1f"
+              textColor="#071624"
+              lineColor="#fff5c4"
+              baseColor="#c28b00"
+              intensity={0.8}
+              shineSize={11}
+              shineFade={34}
+              thickness={1}
+              speed={0.2}
+              followMouse
+              proximity={220}
+              autoAnimate
+              onClick={scrollToPrice}
+            >
+              <span>{copy.downloadPrice}</span>
+              <span className="specular-price-button__arrow" aria-hidden="true">↓</span>
+            </SpecularButton>
           </div>
         </div>
 
@@ -122,10 +152,26 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
             <div><span>{copy.price.update}</span><b>{copy.price.frequency}</b></div>
             <div><span>{copy.price.access}</span><b>{copy.price.free}</b></div>
           </div>
-          <a className="download-button" href={priceInfo.downloadUrl} download>
-            <span className="button-label">{copy.price.download}</span>
-            <span className="button-icon" aria-hidden="true">↓</span>
-          </a>
+          <SpecularButton
+            className="specular-price-button specular-price-button--download"
+            radius={2}
+            tint="#ffbd1f"
+            textColor="#071624"
+            lineColor="#fff5c4"
+            baseColor="#c28b00"
+            intensity={0.8}
+            shineSize={11}
+            shineFade={34}
+            thickness={1}
+            speed={0.2}
+            followMouse
+            proximity={220}
+            autoAnimate
+            onClick={downloadPrice}
+          >
+            <span>{copy.price.download}</span>
+            <span className="specular-price-button__arrow" aria-hidden="true">↓</span>
+          </SpecularButton>
           <p className="file-note">{copy.price.note}</p>
         </div>
       </section>
