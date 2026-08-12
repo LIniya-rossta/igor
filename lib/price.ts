@@ -6,6 +6,12 @@ import { excelContentDisposition } from "@/lib/excel-file";
 
 export type PriceVersion = typeof priceVersions.$inferSelect;
 
+const NEW_ITEMS_CACHE_TTL_MS = 30_000;
+let currentNewItemsCache: {
+  expiresAt: number;
+  request: Promise<string[]>;
+} | null = null;
+
 const bishkekDate = new Intl.DateTimeFormat("ru-RU", {
   day: "numeric",
   month: "long",
@@ -47,6 +53,29 @@ export async function getCurrentNewItems() {
     .from(priceNewItems)
     .where(eq(priceNewItems.priceVersionId, current.id))
     .orderBy(priceNewItems.position);
+}
+
+/**
+ * Shared short-lived read cache for the public page and API route. Keeping the
+ * in-flight promise prevents a burst of SSR/API requests from hitting D1
+ * repeatedly after a cache miss.
+ */
+export function getCachedCurrentNewItems() {
+  const now = Date.now();
+  if (currentNewItemsCache && currentNewItemsCache.expiresAt > now) {
+    return currentNewItemsCache.request;
+  }
+
+  const request = getCurrentNewItems().then((rows) => rows.map((row) => row.productName));
+  currentNewItemsCache = {
+    request,
+    expiresAt: now + NEW_ITEMS_CACHE_TTL_MS,
+  };
+  return request;
+}
+
+export function invalidatePriceReadCache() {
+  currentNewItemsCache = null;
 }
 
 export function formatPriceDate(timestamp: number) {

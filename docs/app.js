@@ -171,7 +171,7 @@ function applyMeta(meta) {
 
 async function refreshPriceMeta() {
   try {
-    const response = await fetch(META_URL, { cache: "no-store" });
+    const response = await fetch(META_URL, { cache: "default" });
     if (!response.ok) throw new Error("Price metadata is unavailable");
     applyMeta(await response.json());
   } catch {
@@ -195,7 +195,7 @@ function applyNewItems(payload) {
 
 async function refreshNewItems() {
   try {
-    const response = await fetch(NEW_ITEMS_URL, { cache: "no-store" });
+    const response = await fetch(NEW_ITEMS_URL, { cache: "default" });
     if (!response.ok) throw new Error("New items are unavailable");
     applyNewItems(await response.json());
   } catch {

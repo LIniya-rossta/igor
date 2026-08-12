@@ -61,7 +61,7 @@
   font-weight: 750;
   line-height: 1.35;
   transform: translateX(calc(var(--effect, 0) * var(--max-shift)));
-  transition: color .08s linear;
+  will-change: color, transform;
 }
 
 .line-sidebar__index {
@@ -89,6 +89,7 @@
   background-color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--marker-color));
   transform: translateY(-50%) scaleX(calc(.72 + var(--effect, 0) * .4));
   transform-origin: left center;
+  will-change: background-color, transform;
 }
 
 .line-sidebar--markers .line-sidebar__item:not(:last-child)::after {

@@ -16,7 +16,7 @@ import {
   type BrowserUploadSession,
 } from "@/lib/browser-upload";
 import { isValidExcelObject } from "@/lib/excel";
-import { formatPriceDate, formatPriceVersion } from "@/lib/price";
+import { formatPriceDate, formatPriceVersion, invalidatePriceReadCache } from "@/lib/price";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import { formatFileSize } from "@/lib/xlsx";
 import { extractNewProductNamesFromExcelObject } from "@/lib/xlsx-new-items";
@@ -198,7 +198,10 @@ export async function POST(request: Request) {
       uploadedAt,
       newItemNames,
     );
-    if (published) operationNonce = null;
+    if (published) {
+      invalidatePriceReadCache();
+      operationNonce = null;
+    }
     if (!published) {
       const current = await getBrowserUploadSession(leasedSession.id);
       if (current?.status === "published") {

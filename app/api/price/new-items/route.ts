@@ -1,13 +1,13 @@
-import { getCurrentNewItems } from "@/lib/price";
+import { getCachedCurrentNewItems } from "@/lib/price";
 import { publicPriceHeaders } from "@/lib/public-api";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const rows = await getCurrentNewItems();
+    const items = await getCachedCurrentNewItems();
     return Response.json(
-      { items: rows.map((row: { productName: string }) => row.productName) },
+      { items },
       { headers: publicPriceHeaders(request.headers.get("Origin")) },
     );
   } catch {

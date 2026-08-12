@@ -18,6 +18,10 @@ type NewItemsResponse = {
   items: string[];
 };
 
+type LiveNewItemsProps = {
+  initialItems?: string[];
+};
+
 const fallbackMeta: PriceMeta = {
   updated: priceInfo.updated,
   version: priceInfo.version,
@@ -43,7 +47,7 @@ function loadMeta() {
   const now = Date.now();
   if (metaCache && metaCache.expiresAt > now) return metaCache.request;
 
-  const request = fetch("/api/price/meta", { cache: "no-store" })
+  const request = fetch("/api/price/meta", { cache: "default" })
     .then((response) => {
       if (!response.ok) throw new Error("Price metadata request failed");
       return response.json() as Promise<PriceMeta>;
@@ -57,7 +61,7 @@ function loadNewItems() {
   const now = Date.now();
   if (newItemsCache && newItemsCache.expiresAt > now) return newItemsCache.request;
 
-  const request = fetch("/api/price/new-items", { cache: "no-store" })
+  const request = fetch("/api/price/new-items", { cache: "default" })
     .then((response) => {
       if (!response.ok) throw new Error("New items request failed");
       return response.json() as Promise<NewItemsResponse>;
@@ -117,8 +121,8 @@ export function LivePriceFormat() {
   return <span aria-live="polite">{meta.filename.toLowerCase().endsWith(".xls") ? "XLS" : "XLSX"}</span>;
 }
 
-export function LiveNewItems() {
-  const [items, setItems] = useState<string[]>([]);
+export function LiveNewItems({ initialItems = [] }: LiveNewItemsProps) {
+  const [items, setItems] = useState<string[]>(initialItems);
 
   useEffect(() => {
     let active = true;
@@ -166,7 +170,7 @@ export function LiveNewItems() {
           scaleTick
           itemGap={14}
           fontSize={1}
-          smoothing={100}
+          smoothing={180}
         />
       ) : (
         <div className="new-items-empty">Новые товары появятся после следующего обновления прайса.</div>

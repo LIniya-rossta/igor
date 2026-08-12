@@ -1,5 +1,6 @@
 import BlurText from "./BlurText";
 import { priceInfo } from "./price-config";
+import { getCachedCurrentNewItems } from "@/lib/price";
 import {
   LivePriceDate,
   LivePriceFileLine,
@@ -10,7 +11,16 @@ import {
 
 const telegramUrl = "https://t.me/unb_computers";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  let initialNewItems: string[] = [];
+  try {
+    initialNewItems = await getCachedCurrentNewItems();
+  } catch {
+    // The public page still renders with the empty state if storage is warming up.
+  }
+
   return (
     <main>
       <div className="announcement">
@@ -70,7 +80,7 @@ export default function Home() {
         </div>
       </section>
 
-      <LiveNewItems />
+      <LiveNewItems initialItems={initialNewItems} />
 
       <section className="price-section shell" id="price">
         <div className="price-copy">

@@ -30,6 +30,7 @@ import {
   formatPriceVersion,
   getCurrentPriceVersion,
   getRecentPriceVersions,
+  invalidatePriceReadCache,
 } from "@/lib/price";
 import { getRuntimeEnv, type RuntimeEnv } from "@/lib/runtime-env";
 import { telegramMethodUrl } from "@/lib/telegram-api";
@@ -849,6 +850,8 @@ async function publishPending(
     await cleanupUnpublishedTelegramObject(runtimeEnv, versionId);
     return;
   }
+
+  invalidatePriceReadCache();
 
   await tryEditCallbackMessage(
     runtimeEnv,

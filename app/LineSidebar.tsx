@@ -90,7 +90,7 @@ export default function LineSidebar({
   }, []);
 
   const startLoop = useCallback(() => {
-    if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
+    if (rafRef.current !== null) return;
     lastRef.current = performance.now();
     rafRef.current = window.requestAnimationFrame(runFrame);
   }, [runFrame]);
