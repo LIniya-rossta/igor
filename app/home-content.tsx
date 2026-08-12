@@ -185,7 +185,8 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           <div className="contact-side">
             <p>{copy.contactBlock.description}</p>
             <a href={telegramUrl} className="contact-button" target="_blank" rel="noopener noreferrer">
-              {copy.contactBlock.button} <span aria-hidden="true">↗</span>
+              <span className="contact-button__label">{copy.contactBlock.button}</span>
+              <span className="contact-button__icon" aria-hidden="true">↗</span>
             </a>
           </div>
         </div>
