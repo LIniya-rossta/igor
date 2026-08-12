@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { priceInfo } from "./price-config";
-import AnimatedList from "./AnimatedList";
 import CountUp from "./CountUp";
+import LineSidebar from "./LineSidebar";
 
 type PriceMeta = {
   updated: string;
@@ -152,10 +152,21 @@ export function LiveNewItems() {
         </div>
       </div>
       {items.length ? (
-        <AnimatedList
+        <LineSidebar
           items={items}
-          showGradients
-          displayScrollbar
+          accentColor="#e5484d"
+          textColor="#0e1f2e"
+          markerColor="#aab1b5"
+          proximityRadius={110}
+          maxShift={18}
+          falloff="smooth"
+          markerLength={52}
+          markerGap={12}
+          tickScale={0.42}
+          scaleTick
+          itemGap={14}
+          fontSize={1}
+          smoothing={100}
         />
       ) : (
         <div className="new-items-empty">Новые товары появятся после следующего обновления прайса.</div>

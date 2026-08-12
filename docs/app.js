@@ -46,41 +46,115 @@ function animateItemsCount(count) {
   });
 }
 
-let currentNewItems = [];
-let newItemsExpanded = false;
+function renderStaticLineSidebar(nav, items) {
+  nav.style.setProperty("--accent-color", "#e5484d");
+  nav.style.setProperty("--text-color", "#0e1f2e");
+  nav.style.setProperty("--marker-color", "#aab1b5");
+  nav.style.setProperty("--marker-length", "52px");
+  nav.style.setProperty("--marker-gap", "12px");
+  nav.style.setProperty("--tick-scale", "0.42");
+  nav.style.setProperty("--max-shift", "18px");
+  nav.style.setProperty("--item-gap", "14px");
+  nav.style.setProperty("--font-size", "1rem");
 
-function renderStaticNewItems(list, toggle) {
-  const visibleItems = newItemsExpanded ? currentNewItems : currentNewItems.slice(0, 6);
-  const rows = visibleItems.map((item, index) => {
-      const row = document.createElement("div");
-      row.className = "animated-list-item";
-      row.dataset.animatedIndex = String(index);
-      row.style.animationDelay = `${Math.min(index, 12) * 45}ms`;
-      const number = document.createElement("span");
-      number.className = "animated-list-index";
-      number.setAttribute("aria-hidden", "true");
-      number.textContent = String(index + 1).padStart(2, "0");
-      const mark = document.createElement("span");
-      mark.className = "animated-list-mark";
-      mark.setAttribute("aria-hidden", "true");
-      const name = document.createElement("span");
-      name.textContent = item.trim();
-      row.append(number, mark, name);
-      return row;
-  });
-  if (!rows.length) {
+  if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "new-items-empty";
     empty.textContent = "Новые товары появятся после следующего обновления прайса.";
-    rows.push(empty);
+    nav.replaceChildren(empty);
+    return;
   }
-  list.replaceChildren(...rows);
-  toggle.hidden = currentNewItems.length <= 6;
-  toggle.setAttribute("aria-expanded", String(newItemsExpanded));
-  toggle.querySelector("span:first-child").textContent = newItemsExpanded
-    ? "Свернуть список"
-    : `Показать все · ${currentNewItems.length} позиций`;
-  toggle.querySelector("span:last-child").textContent = newItemsExpanded ? "↑" : "↓";
+
+  const list = document.createElement("ul");
+  list.className = "line-sidebar__list";
+  list.setAttribute("aria-label", "Новые товары");
+  const rows = items.map((item, index) => {
+    const row = document.createElement("li");
+    row.className = "line-sidebar__item";
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
+    row.setAttribute("aria-label", `Новинка ${index + 1}: ${item.trim()}`);
+    const marker = document.createElement("span");
+    marker.className = "line-sidebar__marker";
+    marker.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "line-sidebar__label";
+    const number = document.createElement("span");
+    number.className = "line-sidebar__index";
+    number.setAttribute("aria-hidden", "true");
+    number.textContent = String(index + 1).padStart(2, "0");
+    const text = document.createElement("span");
+    text.className = "line-sidebar__text";
+    text.textContent = item.trim();
+    label.append(number, text);
+    row.append(marker, label);
+    list.append(row);
+    return row;
+  });
+  nav.replaceChildren(list);
+
+  let activeIndex = -1;
+  let targets = rows.map(() => 0);
+  let current = rows.map(() => 0);
+  let raf = null;
+  let last = performance.now();
+  const startLoop = () => {
+    if (raf !== null) cancelAnimationFrame(raf);
+    last = performance.now();
+    raf = requestAnimationFrame(runFrame);
+  };
+  const runFrame = (now) => {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    const factor = 1 - Math.exp(-dt / 0.1);
+    let moving = false;
+    rows.forEach((row, index) => {
+      const target = Math.max(targets[index], activeIndex === index ? 1 : 0);
+      const next = current[index] + (target - current[index]) * factor;
+      current[index] = Math.abs(target - next) < 0.0015 ? target : next;
+      row.style.setProperty("--effect", current[index].toFixed(4));
+      if (Math.abs(target - current[index]) >= 0.0015) moving = true;
+    });
+    raf = moving ? requestAnimationFrame(runFrame) : null;
+  };
+  list.addEventListener("pointermove", (event) => {
+    const rect = list.getBoundingClientRect();
+    const pointerY = event.clientY - rect.top + list.scrollTop;
+    targets = rows.map((row) => {
+      const center = row.offsetTop + row.offsetHeight / 2;
+      const progress = Math.max(0, 1 - Math.abs(pointerY - center) / 110);
+      return progress * progress * (3 - 2 * progress);
+    });
+    startLoop();
+  });
+  list.addEventListener("pointerleave", () => {
+    targets = targets.map(() => 0);
+    startLoop();
+  });
+  rows.forEach((row, index) => {
+    const activate = () => {
+      activeIndex = index;
+      rows.forEach((item, itemIndex) => item.toggleAttribute("aria-current", itemIndex === index));
+      startLoop();
+    };
+    row.addEventListener("click", activate);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        activate();
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const nextIndex = event.key === "ArrowDown"
+          ? Math.min(rows.length - 1, index + 1)
+          : Math.max(0, index - 1);
+        rows[nextIndex].focus({ preventScroll: true });
+        rows[nextIndex].scrollIntoView({ behavior: "smooth", block: "nearest" });
+        activeIndex = nextIndex;
+        startLoop();
+      }
+    });
+  });
+  startLoop();
 }
 
 function applyMeta(meta) {
@@ -108,26 +182,16 @@ async function refreshPriceMeta() {
 function applyNewItems(payload) {
   const section = document.querySelector("#new-items");
   const list = document.querySelector("[data-new-items-list]");
-  const toggle = document.querySelector("[data-new-items-toggle]");
-  if (!section || !list || !toggle) return;
+  if (!section || !list) return;
 
   const items = Array.isArray(payload.items)
     ? payload.items.filter((item) => typeof item === "string" && item.trim().length > 0)
     : [];
 
   animateItemsCount(items.length);
-  currentNewItems = items;
-  renderStaticNewItems(list, toggle);
+  renderStaticLineSidebar(list, items);
   section.hidden = false;
 }
-
-document.querySelectorAll("[data-new-items-toggle]").forEach((toggle) => {
-  toggle.addEventListener("click", () => {
-    newItemsExpanded = !newItemsExpanded;
-    const list = document.querySelector("[data-new-items-list]");
-    if (list) renderStaticNewItems(list, toggle);
-  });
-});
 
 async function refreshNewItems() {
   try {
