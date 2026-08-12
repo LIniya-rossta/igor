@@ -115,6 +115,7 @@ h1, h2, h3, p { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .light-rays-container { display: none; }
+  .threads-container { display: none; }
 }
 
 .new-items-section {
@@ -173,6 +174,8 @@ h1, h2, h3, p { margin: 0; }
 .category-card a { margin-top: auto; padding-top: 20px; display: flex; justify-content: space-between; border-top: 1px solid var(--line); color: var(--navy); font-size: 12px; font-weight: 850; }
 
 .price-section { min-height: 690px; padding: clamp(80px, 8vw, 120px) clamp(28px, 8vw, 160px); display: grid; grid-template-columns: minmax(280px, .85fr) minmax(0, 1.15fr); gap: clamp(44px, 7vw, 120px); align-items: center; background: var(--navy); color: var(--white); position: relative; overflow: hidden; }
+.threads-container { position: absolute; z-index: 0; inset: 0; pointer-events: none; overflow: hidden; opacity: .24; }
+.threads-container canvas { display: block; width: 100%; height: 100%; }
 .price-section::before { content: ""; position: absolute; width: 420px; height: 420px; left: -200px; bottom: -260px; border: 90px solid rgba(255,189,31,.08); border-radius: 50%; }
 .section-kicker-light { color: var(--yellow); }
 .price-copy { position: relative; z-index: 1; }

@@ -222,6 +222,16 @@ if (lightRaysTarget && window.LightRays) {
   });
 }
 
+const threadsTarget = document.querySelector("[data-threads]");
+if (threadsTarget && window.Threads) {
+  window.Threads.mount(threadsTarget, {
+    color: [1, 0.74, 0.12],
+    amplitude: 0.42,
+    distance: 0.02,
+    enableMouseInteraction: true,
+  });
+}
+
 void refreshPriceMeta();
 void refreshNewItems();
 window.setInterval(refreshPriceMeta, REFRESH_INTERVAL_MS);
