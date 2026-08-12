@@ -155,7 +155,6 @@ export function LiveNewItems() {
         <AnimatedList
           items={items}
           showGradients
-          enableArrowNavigation
           displayScrollbar
         />
       ) : (

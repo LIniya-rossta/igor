@@ -46,27 +46,41 @@ function animateItemsCount(count) {
   });
 }
 
-function enableStaticAnimatedList(list) {
-  if (list.dataset.keyboardReady === "true") return;
-  list.dataset.keyboardReady = "true";
-  list.addEventListener("keydown", (event) => {
-    const items = [...list.querySelectorAll("[data-animated-index]")];
-    if (!items.length) return;
-    const active = items.findIndex((item) => item.classList.contains("is-selected"));
-    const current = active < 0 ? -1 : active;
-    let next = null;
-    if (event.key === "ArrowDown" || event.key === "ArrowRight") next = Math.min(items.length - 1, current + 1);
-    if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = Math.max(0, current - 1);
-    if (event.key === "Home") next = 0;
-    if (event.key === "End") next = items.length - 1;
-    if (next === null) return;
-    event.preventDefault();
-    items.forEach((item) => item.classList.remove("is-selected"));
-    const selected = items[next];
-    selected.classList.add("is-selected");
-    selected.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    selected.focus({ preventScroll: true });
+let currentNewItems = [];
+let newItemsExpanded = false;
+
+function renderStaticNewItems(list, toggle) {
+  const visibleItems = newItemsExpanded ? currentNewItems : currentNewItems.slice(0, 6);
+  const rows = visibleItems.map((item, index) => {
+      const row = document.createElement("div");
+      row.className = "animated-list-item";
+      row.dataset.animatedIndex = String(index);
+      row.style.animationDelay = `${Math.min(index, 12) * 45}ms`;
+      const number = document.createElement("span");
+      number.className = "animated-list-index";
+      number.setAttribute("aria-hidden", "true");
+      number.textContent = String(index + 1).padStart(2, "0");
+      const mark = document.createElement("span");
+      mark.className = "animated-list-mark";
+      mark.setAttribute("aria-hidden", "true");
+      const name = document.createElement("span");
+      name.textContent = item.trim();
+      row.append(number, mark, name);
+      return row;
   });
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "new-items-empty";
+    empty.textContent = "Новые товары появятся после следующего обновления прайса.";
+    rows.push(empty);
+  }
+  list.replaceChildren(...rows);
+  toggle.hidden = currentNewItems.length <= 6;
+  toggle.setAttribute("aria-expanded", String(newItemsExpanded));
+  toggle.querySelector("span:first-child").textContent = newItemsExpanded
+    ? "Свернуть список"
+    : `Показать все · ${currentNewItems.length} позиций`;
+  toggle.querySelector("span:last-child").textContent = newItemsExpanded ? "↑" : "↓";
 }
 
 function applyMeta(meta) {
@@ -94,50 +108,26 @@ async function refreshPriceMeta() {
 function applyNewItems(payload) {
   const section = document.querySelector("#new-items");
   const list = document.querySelector("[data-new-items-list]");
-  if (!section || !list) return;
-  enableStaticAnimatedList(list);
+  const toggle = document.querySelector("[data-new-items-toggle]");
+  if (!section || !list || !toggle) return;
 
   const items = Array.isArray(payload.items)
     ? payload.items.filter((item) => typeof item === "string" && item.trim().length > 0)
     : [];
 
   animateItemsCount(items.length);
-
-  const rows = items.map((item, index) => {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "animated-list-item";
-      row.dataset.animatedIndex = String(index);
-      row.style.animationDelay = `${Math.min(index, 12) * 45}ms`;
-      const number = document.createElement("span");
-      number.className = "animated-list-index";
-      number.setAttribute("aria-hidden", "true");
-      number.textContent = String(index + 1).padStart(2, "0");
-      const mark = document.createElement("span");
-      mark.className = "animated-list-mark";
-      mark.setAttribute("aria-hidden", "true");
-      const name = document.createElement("span");
-      name.textContent = item.trim();
-      const arrow = document.createElement("span");
-      arrow.className = "animated-list-arrow";
-      arrow.setAttribute("aria-hidden", "true");
-      arrow.textContent = "↗";
-      row.append(number, mark, name, arrow);
-      row.addEventListener("click", () => {
-        list.querySelectorAll(".is-selected").forEach((selected) => selected.classList.remove("is-selected"));
-        row.classList.add("is-selected");
-      });
-      return row;
-  });
-  if (!rows.length) {
-    const empty = document.createElement("p");
-    empty.className = "new-items-empty";
-    empty.textContent = "Новые товары появятся после следующего обновления прайса.";
-    rows.push(empty);
-  }
-  list.replaceChildren(...rows);
+  currentNewItems = items;
+  renderStaticNewItems(list, toggle);
   section.hidden = false;
 }
+
+document.querySelectorAll("[data-new-items-toggle]").forEach((toggle) => {
+  toggle.addEventListener("click", () => {
+    newItemsExpanded = !newItemsExpanded;
+    const list = document.querySelector("[data-new-items-list]");
+    if (list) renderStaticNewItems(list, toggle);
+  });
+});
 
 async function refreshNewItems() {
   try {

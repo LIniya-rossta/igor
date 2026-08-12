@@ -1,55 +1,24 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useState } from "react";
 
 type AnimatedListProps = {
   items: string[];
-  onItemSelect?: (item: string, index: number) => void;
   showGradients?: boolean;
-  enableArrowNavigation?: boolean;
   displayScrollbar?: boolean;
+  initialVisibleItems?: number;
 };
 
 export default function AnimatedList({
   items,
-  onItemSelect,
   showGradients = false,
-  enableArrowNavigation = false,
   displayScrollbar = false,
+  initialVisibleItems = 6,
 }: AnimatedListProps) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-
-  const selectItem = (index: number) => {
-    setSelectedIndex(index);
-    onItemSelect?.(items[index], index);
-  };
-
-  const focusItem = (index: number) => {
-    const nextIndex = Math.max(0, Math.min(items.length - 1, index));
-    const item = listRef.current?.querySelector<HTMLButtonElement>(`[data-animated-index="${nextIndex}"]`);
-    item?.focus({ preventScroll: true });
-    item?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    selectItem(nextIndex);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!enableArrowNavigation || !items.length) return;
-    const current = selectedIndex ?? -1;
-    if (event.key === "ArrowDown" || event.key === "ArrowRight") {
-      event.preventDefault();
-      focusItem(current + 1);
-    } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
-      event.preventDefault();
-      focusItem(current - 1);
-    } else if (event.key === "Home") {
-      event.preventDefault();
-      focusItem(0);
-    } else if (event.key === "End") {
-      event.preventDefault();
-      focusItem(items.length - 1);
-    }
-  };
+  const [expanded, setExpanded] = useState(false);
+  const visibleItems = expanded ? items : items.slice(0, initialVisibleItems);
+  const hasMore = items.length > initialVisibleItems;
+  const rangeEnd = Math.min(visibleItems.length, items.length);
 
   const className = [
     "animated-list-shell",
@@ -58,36 +27,39 @@ export default function AnimatedList({
   const listClassName = [
     "animated-list",
     displayScrollbar && "animated-list--scrollbar",
-    enableArrowNavigation && "animated-list--keyboard",
   ].filter(Boolean).join(" ");
 
   return (
     <div className={className}>
-      <div
-        ref={listRef}
-        className={listClassName}
-        role="list"
-        aria-label="Новые товары"
-        tabIndex={enableArrowNavigation ? 0 : undefined}
-        onKeyDown={handleKeyDown}
-      >
-        {items.map((item, index) => (
-          <button
-            type="button"
-            className={`animated-list-item${selectedIndex === index ? " is-selected" : ""}`}
+      <div className="animated-list-header">
+        <span>Новые позиции</span>
+        <span>{items.length ? `1–${rangeEnd} из ${items.length}` : "Пока пусто"}</span>
+      </div>
+      <div className={listClassName} role="list" aria-label="Новые товары">
+        {visibleItems.map((item, index) => (
+          <div
+            className="animated-list-item"
             key={`${item}-${index}`}
-            data-animated-index={index}
             style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
-            onClick={() => selectItem(index)}
-            aria-label={`Новинка ${index + 1}: ${item}`}
+            role="listitem"
           >
             <span className="animated-list-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
             <span className="animated-list-mark" aria-hidden="true" />
             <span>{item}</span>
-            <span className="animated-list-arrow" aria-hidden="true">↗</span>
-          </button>
+          </div>
         ))}
       </div>
+      {hasMore && (
+        <button
+          type="button"
+          className="animated-list-toggle"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <span>{expanded ? "Свернуть список" : `Показать все · ${items.length} позиций`}</span>
+          <span aria-hidden="true">{expanded ? "↑" : "↓"}</span>
+        </button>
+      )}
     </div>
   );
 }
