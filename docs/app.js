@@ -53,7 +53,7 @@ function enableStaticAnimatedList(list) {
     const items = [...list.querySelectorAll("[data-animated-index]")];
     if (!items.length) return;
     const active = items.findIndex((item) => item.classList.contains("is-selected"));
-    const current = active < 0 ? 0 : active;
+    const current = active < 0 ? -1 : active;
     let next = null;
     if (event.key === "ArrowDown" || event.key === "ArrowRight") next = Math.min(items.length - 1, current + 1);
     if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = Math.max(0, current - 1);
@@ -109,12 +109,20 @@ function applyNewItems(payload) {
       row.className = "animated-list-item";
       row.dataset.animatedIndex = String(index);
       row.style.animationDelay = `${Math.min(index, 12) * 45}ms`;
+      const number = document.createElement("span");
+      number.className = "animated-list-index";
+      number.setAttribute("aria-hidden", "true");
+      number.textContent = String(index + 1).padStart(2, "0");
       const mark = document.createElement("span");
       mark.className = "animated-list-mark";
       mark.setAttribute("aria-hidden", "true");
       const name = document.createElement("span");
       name.textContent = item.trim();
-      row.append(mark, name);
+      const arrow = document.createElement("span");
+      arrow.className = "animated-list-arrow";
+      arrow.setAttribute("aria-hidden", "true");
+      arrow.textContent = "↗";
+      row.append(number, mark, name, arrow);
       row.addEventListener("click", () => {
         list.querySelectorAll(".is-selected").forEach((selected) => selected.classList.remove("is-selected"));
         row.classList.add("is-selected");

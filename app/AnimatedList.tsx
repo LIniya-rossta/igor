@@ -79,9 +79,12 @@ export default function AnimatedList({
             data-animated-index={index}
             style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
             onClick={() => selectItem(index)}
+            aria-label={`Новинка ${index + 1}: ${item}`}
           >
+            <span className="animated-list-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
             <span className="animated-list-mark" aria-hidden="true" />
             <span>{item}</span>
+            <span className="animated-list-arrow" aria-hidden="true">↗</span>
           </button>
         ))}
       </div>
