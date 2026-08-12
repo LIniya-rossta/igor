@@ -1,5 +1,6 @@
 import BlurText from "./BlurText";
 import LightRays from "./LightRays";
+import LanguageToggle from "@/components/ui/language-toggle";
 import { priceInfo } from "./price-config";
 import { getCachedCurrentNewItems } from "@/lib/price";
 import {
@@ -41,9 +42,12 @@ export default async function Home() {
           <a href="#price">Прайс-лист</a>
         </nav>
 
-        <a className="header-action" href="#contact">
-          Связаться <span aria-hidden="true">↗</span>
-        </a>
+        <div className="header-tools">
+          <LanguageToggle />
+          <a className="header-action" href="#contact">
+            Связаться <span aria-hidden="true">↗</span>
+          </a>
+        </div>
       </header>
 
       <section className="hero shell" id="top">

@@ -70,9 +70,16 @@ main { overflow-x: clip; }
 .nav-links { display: flex; align-items: center; gap: 34px; font-size: 13px; font-weight: 650; color: rgba(255,253,247,.72); }
 .nav-links a, .site-footer a { transition: color .2s ease; }
 .nav-links a:hover, .site-footer a:hover { color: var(--yellow); }
-.header-action { justify-self: end; display: inline-flex; align-items: center; gap: 18px; font-size: 13px; font-weight: 800; }
+.header-tools { justify-self: end; display: inline-flex; align-items: center; gap: 24px; }
+.header-action { display: inline-flex; align-items: center; gap: 18px; font-size: 13px; font-weight: 800; }
 .header-action span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--yellow); color: var(--navy); transition: transform .2s ease; }
 .header-action:hover span { transform: rotate(45deg); }
+.language-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid rgba(255,253,247,.2); border-radius: 999px; background: rgba(255,255,255,.04); color: rgba(255,253,247,.64); }
+.language-toggle__option { min-width: 30px; height: 26px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 9px; font-weight: 850; letter-spacing: .08em; transition: background .2s ease, color .2s ease, transform .2s ease; }
+.language-toggle__option:hover { color: var(--white); transform: translateY(-1px); }
+.language-toggle__option.is-active { background: var(--yellow); color: var(--navy); }
+.language-toggle__option:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.language-toggle__divider { color: rgba(255,253,247,.28); font-size: 10px; line-height: 1; user-select: none; }
 
 .hero {
   min-height: 680px;
@@ -251,6 +258,7 @@ h1, h2, h3, p { margin: 0; }
   .site-header { height: 70px; padding-inline: 14px; }
   .brand-main { font-size: 32px; }
   .brand-sub { font-size: 11px; }
+  .header-tools { gap: 12px; }
   .header-action { font-size: 0; }
   .header-action span { width: 44px; height: 44px; font-size: 14px; }
   .hero.shell { width: 100%; border-inline: 0; }
