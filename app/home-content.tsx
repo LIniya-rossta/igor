@@ -63,7 +63,7 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           </h1>
           <p className="hero-lead">{copy.heroLead}</p>
           <div className="hero-actions">
-            <a className="button button-primary button-with-icon" href="#price">
+            <a className="button button-primary" href="#price">
               <span className="button-label">{copy.downloadPrice}</span>
               <span className="button-icon" aria-hidden="true">↓</span>
             </a>
@@ -122,7 +122,7 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
             <div><span>{copy.price.update}</span><b>{copy.price.frequency}</b></div>
             <div><span>{copy.price.access}</span><b>{copy.price.free}</b></div>
           </div>
-          <a className="download-button button-with-icon" href={priceInfo.downloadUrl} download>
+          <a className="download-button" href={priceInfo.downloadUrl} download>
             <span className="button-label">{copy.price.download}</span>
             <span className="button-icon" aria-hidden="true">↓</span>
           </a>

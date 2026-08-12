@@ -197,12 +197,6 @@ h1, h2, h3, p { margin: 0; }
 .download-button:hover { background: #ffc83e; }
 .download-button:hover { transform: translateY(-2px); }
 .download-button b { font-size: 20px; }
-.button-with-icon { position: relative; overflow: hidden; justify-content: flex-start; gap: 0; padding: 0 60px 0 28px; transition: background .2s ease, transform .2s ease, padding .5s cubic-bezier(.22, .75, .25, 1); }
-.button-with-icon .button-label { position: relative; z-index: 1; transition: transform .5s cubic-bezier(.22, .75, .25, 1); }
-.button-with-icon .button-icon { position: absolute; top: 50%; right: 8px; z-index: 2; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 999px; background: var(--navy); color: var(--yellow); font-size: 22px; line-height: 1; transform: translateY(-50%); transition: right .5s cubic-bezier(.22, .75, .25, 1), transform .5s cubic-bezier(.22, .75, .25, 1), background .2s ease; }
-.button-with-icon:hover { padding-left: 60px; padding-right: 28px; }
-.button-with-icon:hover .button-icon, .button-with-icon:focus-visible .button-icon { right: calc(100% - 50px); transform: translateY(-50%) rotate(45deg); }
-.button-with-icon:focus-visible { outline: 3px solid rgba(7,22,36,.35); outline-offset: 3px; }
 .file-note { padding: 14px 28px 24px; color: #7c8488; font-size: 10px; line-height: 1.5; }
 
 .advantages { padding: 124px 0; }
@@ -337,8 +331,6 @@ h1, h2, h3, p { margin: 0; }
 
 @media (hover: none) {
   .button:hover, .category-card:hover { transform: none; }
-  .button-with-icon:hover { padding-left: 28px; padding-right: 60px; }
-  .button-with-icon:hover .button-icon { right: 8px; transform: translateY(-50%); }
   .benefit-row:hover { padding-inline: 0; }
 }
 
