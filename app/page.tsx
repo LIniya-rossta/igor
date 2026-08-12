@@ -59,8 +59,9 @@ export default async function Home() {
             ценами, гарантией и человеческой консультацией.
           </p>
           <div className="hero-actions">
-            <a className="button button-primary" href="#price">
-              Скачать прайс <span aria-hidden="true">↓</span>
+            <a className="button button-primary button-with-icon" href="#price">
+              <span className="button-label">Скачать прайс</span>
+              <span className="button-icon" aria-hidden="true">↓</span>
             </a>
           </div>
         </div>
@@ -129,8 +130,9 @@ export default async function Home() {
             <div><span>Обновление</span><b>{priceInfo.updateFrequency}</b></div>
             <div><span>Доступ</span><b>Свободный</b></div>
           </div>
-          <a className="download-button" href={priceInfo.downloadUrl} download>
-            <span>Скачать актуальный прайс</span><b aria-hidden="true">↓</b>
+          <a className="download-button button-with-icon" href={priceInfo.downloadUrl} download>
+            <span className="button-label">Скачать актуальный прайс</span>
+            <span className="button-icon" aria-hidden="true">↓</span>
           </a>
           <p className="file-note">После скачивания уточните финальную цену и наличие у менеджера.</p>
         </div>
