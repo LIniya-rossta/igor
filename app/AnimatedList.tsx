@@ -18,7 +18,6 @@ export default function AnimatedList({
   const [expanded, setExpanded] = useState(false);
   const visibleItems = expanded ? items : items.slice(0, initialVisibleItems);
   const hasMore = items.length > initialVisibleItems;
-  const rangeEnd = Math.min(visibleItems.length, items.length);
 
   const className = [
     "animated-list-shell",
@@ -33,7 +32,6 @@ export default function AnimatedList({
     <div className={className}>
       <div className="animated-list-header">
         <span>Новые позиции</span>
-        <span>{items.length ? `1–${rangeEnd} из ${items.length}` : "Пока пусто"}</span>
       </div>
       <div className={listClassName} role="list" aria-label="Новые товары">
         {visibleItems.map((item, index) => (
