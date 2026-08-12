@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
-type Language = "ru" | "en";
+export type Language = "ru" | "en";
 
 const STORAGE_KEY = "unb-language";
 
@@ -25,8 +25,12 @@ function subscribeToLanguage(onChange: () => void) {
   };
 }
 
+export function useLanguage() {
+  return useSyncExternalStore(subscribeToLanguage, getStoredLanguage, () => "ru" as Language);
+}
+
 export default function LanguageToggle() {
-  const language = useSyncExternalStore(subscribeToLanguage, getStoredLanguage, () => "ru");
+  const language = useLanguage();
 
   useEffect(() => {
     document.documentElement.lang = language;

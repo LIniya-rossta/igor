@@ -23,6 +23,7 @@ type LineSidebarProps = {
   smoothing?: number;
   defaultActive?: number | null;
   onItemClick?: (index: number, label: string) => void;
+  ariaLabel?: string;
   className?: string;
 };
 
@@ -51,6 +52,7 @@ export default function LineSidebar({
   smoothing = 100,
   defaultActive = null,
   onItemClick,
+  ariaLabel = "Новинки прайс-листа",
   className = "",
 }: LineSidebarProps) {
   const listRef = useRef<HTMLUListElement>(null);
@@ -145,7 +147,7 @@ export default function LineSidebar({
   return (
     <nav
       className={`line-sidebar${showMarker ? " line-sidebar--markers" : ""}${scaleTick ? " line-sidebar--scale-tick" : ""}${className ? ` ${className}` : ""}`}
-      aria-label="Новинки прайс-листа"
+      aria-label={ariaLabel}
       style={{
         "--accent-color": accentColor,
         "--text-color": textColor,

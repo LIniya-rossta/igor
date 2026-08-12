@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { priceInfo } from "./price-config";
 import CountUp from "./CountUp";
 import LineSidebar from "./LineSidebar";
+import { useLanguage } from "@/components/ui/language-toggle";
+import { siteCopy, type Language } from "@/lib/site-copy";
 
 type PriceMeta = {
   updated: string;
@@ -35,12 +37,27 @@ const META_TTL_MS = 60_000;
 let metaCache: { request: Promise<PriceMeta>; expiresAt: number } | null = null;
 let newItemsCache: { request: Promise<string[]>; expiresAt: number } | null = null;
 
-function formatNewItemsNoun(count: number) {
+function formatNewItemsNoun(count: number, language: Language) {
   const mod10 = count % 10;
   const mod100 = count % 100;
+  if (language === "en") return count === 1 ? "item" : "items";
   if (mod10 === 1 && mod100 !== 11) return "позиция";
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "позиции";
   return "позиций";
+}
+
+const englishMonths: Record<string, string> = {
+  января: "January", февраля: "February", марта: "March", апреля: "April",
+  мая: "May", июня: "June", июля: "July", августа: "August",
+  сентября: "September", октября: "October", ноября: "November", декабря: "December",
+};
+
+function formatUpdatedDate(value: string, language: Language) {
+  if (language === "ru") return value;
+  const match = /^(\d{1,2})\s+([^\s]+)\s+(\d{4})/.exec(value.trim().toLowerCase());
+  if (!match) return value;
+  const month = englishMonths[match[2]];
+  return month ? `${month} ${Number(match[1])}, ${match[3]}` : value;
 }
 
 function loadMeta() {
@@ -99,14 +116,17 @@ function usePriceMeta() {
 
 export function LivePriceDate() {
   const meta = usePriceMeta();
-  return <span aria-live="polite">{meta.updated}</span>;
+  const language = useLanguage();
+  return <span aria-live="polite">{formatUpdatedDate(meta.updated, language)}</span>;
 }
 
 export function LivePriceFileLine() {
   const meta = usePriceMeta();
+  const language = useLanguage();
+  const copy = siteCopy[language].price;
   return (
     <p aria-live="polite">
-      Версия {meta.version} · обновлено {meta.updated}
+      {copy.versionLabel} {meta.version} · {copy.updatedLabel} {formatUpdatedDate(meta.updated, language)}
     </p>
   );
 }
@@ -123,6 +143,8 @@ export function LivePriceFormat() {
 
 export function LiveNewItems({ initialItems = [] }: LiveNewItemsProps) {
   const [items, setItems] = useState<string[]>(initialItems);
+  const language = useLanguage();
+  const copy = siteCopy[language].newItems;
 
   useEffect(() => {
     let active = true;
@@ -142,16 +164,16 @@ export function LiveNewItems({ initialItems = [] }: LiveNewItemsProps) {
   return (
     <section className="new-items-section shell" id="new-items" aria-labelledby="new-items-title">
       <div className="new-items-heading">
-        <span className="section-kicker">Новое в прайсе</span>
+        <span className="section-kicker">{copy.kicker}</span>
         <div className="new-items-title-row">
-          <h2 id="new-items-title">Новинки</h2>
+          <h2 id="new-items-title">{copy.title}</h2>
           <span className="new-items-count" aria-live="polite">
             {items.length ? (
               <>
                 <CountUp from={0} to={items.length} separator="," direction="up" duration={1} className="count-up-text" delay={0} />{" "}
-                {formatNewItemsNoun(items.length)}
+                {formatNewItemsNoun(items.length, language)}
               </>
-            ) : "Пока пусто"}
+            ) : copy.emptyCount}
           </span>
         </div>
       </div>
@@ -171,9 +193,10 @@ export function LiveNewItems({ initialItems = [] }: LiveNewItemsProps) {
           itemGap={14}
           fontSize={1}
           smoothing={180}
+          ariaLabel={copy.aria}
         />
       ) : (
-        <div className="new-items-empty">Новые товары появятся после следующего обновления прайса.</div>
+        <div className="new-items-empty">{copy.empty}</div>
       )}
     </section>
   );
