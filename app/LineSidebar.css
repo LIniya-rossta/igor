@@ -105,6 +105,37 @@
   transform-origin: left center;
 }
 
+/* Narrow layouts need rows to grow with the wrapped product name. The inline
+   component variables keep desktop tuning, so these layout rules are explicit
+   and cannot collapse multi-line items back to the base row height. */
+@media (max-width: 980px) {
+  .line-sidebar__list { gap: 32px; }
+  .line-sidebar__item {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  .line-sidebar__label {
+    display: grid !important;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+    align-items: start;
+    width: 100%;
+    max-width: 100%;
+    transform: none;
+    line-height: 1.5;
+  }
+  .line-sidebar__text {
+    display: block !important;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .line-sidebar__marker { top: .72em; }
+  .line-sidebar--markers .line-sidebar__item:not(:last-child)::after { top: calc(100% + 16px); }
+}
+
 @media (max-width: 640px) {
   .line-sidebar__list {
     max-height: min(480px, 62vh);
