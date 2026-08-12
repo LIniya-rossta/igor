@@ -110,7 +110,8 @@ h1, h2, h3, p { margin: 0; }
 .button { min-height: 55px; padding: 0 22px; display: inline-flex; align-items: center; justify-content: center; gap: 28px; font-size: 13px; font-weight: 850; transition: transform .2s ease, background .2s ease; }
 .button:hover { transform: translateY(-2px); }
 .button-primary { min-height: 68px; padding-inline: 34px; gap: 42px; background: var(--yellow); color: var(--navy); font-size: 15px; }
-.button-primary:hover { background: #ffc83f; }
+.button-primary, .download-button { transition: none; }
+.button-primary:hover, .download-button:hover { background: var(--yellow); transform: none; }
 .button-secondary { border: 1px solid rgba(7,22,36,.22); color: var(--navy); }
 .hero-visual { position: relative; overflow: hidden; min-height: 680px; background: var(--navy); border-left: 1px solid rgba(255,255,255,.08); }
 .light-rays-container { position: absolute; z-index: 0; inset: 0; pointer-events: none; overflow: hidden; opacity: .72; mix-blend-mode: screen; background: radial-gradient(ellipse at 50% -18%, rgba(255,189,31,.23), transparent 54%); }
@@ -193,9 +194,7 @@ h1, h2, h3, p { margin: 0; }
 .file-stats div:last-child { border-right: 0; }
 .file-stats span { color: #82898d; font-size: 9px; font-weight: 750; text-transform: uppercase; letter-spacing: .12em; }
 .file-stats b { font-size: 12px; }
-.download-button { margin: 26px 28px 0; min-height: 68px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; background: var(--yellow); font-size: 14px; font-weight: 900; transition: background .2s ease, transform .2s ease; }
-.download-button:hover { background: #ffc83e; }
-.download-button:hover { transform: translateY(-2px); }
+.download-button { margin: 26px 28px 0; min-height: 68px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; background: var(--yellow); font-size: 14px; font-weight: 900; }
 .download-button b { font-size: 20px; }
 .file-note { padding: 14px 28px 24px; color: #7c8488; font-size: 10px; line-height: 1.5; }
 
