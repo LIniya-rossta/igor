@@ -1,4 +1,5 @@
 import BlurText from "./BlurText";
+import LightRays from "./LightRays";
 import { priceInfo } from "./price-config";
 import { getCachedCurrentNewItems } from "@/lib/price";
 import {
@@ -65,6 +66,17 @@ export default async function Home() {
         </div>
 
         <div className="hero-visual" aria-label="Фирменный знак UnB computers">
+          <LightRays
+            raysOrigin="top-center"
+            raysColor="#ffbd1f"
+            raysSpeed={0.55}
+            lightSpread={0.82}
+            rayLength={1.35}
+            pulsating
+            fadeDistance={1.1}
+            followMouse
+            mouseInfluence={0.08}
+          />
           <div className="hero-grid" aria-hidden="true" />
           <div className="logo-panel">
             {/* vinext currently renders next/image with a duplicate React hook context in dev. */}
