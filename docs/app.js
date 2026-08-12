@@ -207,6 +207,21 @@ document.querySelectorAll("[data-price-download]").forEach((link) => {
   link.href = DOWNLOAD_URL;
 });
 
+const lightRaysTarget = document.querySelector("[data-light-rays]");
+if (lightRaysTarget && window.LightRays) {
+  window.LightRays.mount(lightRaysTarget, {
+    raysOrigin: "top-center",
+    raysColor: "#ffbd1f",
+    raysSpeed: 0.45,
+    lightSpread: 0.8,
+    rayLength: 1.35,
+    pulsating: true,
+    fadeDistance: 1.1,
+    followMouse: true,
+    mouseInfluence: 0.08,
+  });
+}
+
 void refreshPriceMeta();
 void refreshNewItems();
 window.setInterval(refreshPriceMeta, REFRESH_INTERVAL_MS);
