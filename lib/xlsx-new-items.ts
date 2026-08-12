@@ -258,14 +258,25 @@ function xmlAttribute(attributes: string, name: string) {
   return match?.[1] ?? null;
 }
 
+// SpreadsheetML may namespace every element (for example `<x:row>`).
+// Accept both qualified and unqualified tags so Excel exporters cannot make
+// the new-items scan silently return an empty list.
+function xmlTag(name: string) {
+  return `(?:[A-Za-z_][\\w.-]*:)?${name}`;
+}
+
 function xmlSection(xml: string, name: string) {
-  const match = new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)</${name}>`).exec(xml);
+  const tag = xmlTag(name);
+  const match = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`).exec(xml);
   return match?.[1] ?? "";
 }
 
 function xmlText(xml: string) {
+  const tag = xmlTag("t");
   return decodeXml(
-    [...xml.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((match) => match[1]).join(""),
+    [...xml.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, "g"))]
+      .map((match) => match[1])
+      .join(""),
   ).replace(/\s+/g, " ").trim();
 }
 
@@ -291,11 +302,28 @@ function markerFillColor(attrs: string) {
   return xmlAttribute(attrs, "theme") === "6";
 }
 
+function isProductRow(rowAttributes: string, rowXml: string, strings: string[]) {
+  const cells: ParsedCell[] = [];
+  const tag = xmlTag("c");
+  for (const match of rowXml.matchAll(new RegExp(`<${tag}\\b([^>]*?)(?:\\/\\>|>([\\s\\S]*?)</${tag}>)`, "g"))) {
+    const cell = parseCell(match[1], match[2] ?? null, strings);
+    if (cell) cells.push(cell);
+  }
+  const nameCell = cells.find((cell) => columnLetters(cell.ref) === "B");
+  if (!nameCell || !nameCell.value) return null;
+  const hasNumericProductField = cells.some((cell) => {
+    const column = columnLetters(cell.ref);
+    return (column === "A" || column === "C" || column === "D") && /^[-+]?\d+(?:[.,]\d+)?$/.test(cell.value);
+  });
+  return hasNumericProductField ? { cells, name: nameCell.value } : null;
+}
+
 function greenFillIds(stylesXml: string) {
   const fills = xmlSection(stylesXml, "fills");
   const result = new Set<number>();
   let fillIndex = 0;
-  for (const match of fills.matchAll(/<fill\b[^>]*>([\s\S]*?)<\/fill>/g)) {
+  const tag = xmlTag("fill");
+  for (const match of fills.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, "g"))) {
     if (markerFillColor(match[1])) result.add(fillIndex);
     fillIndex += 1;
   }
@@ -305,7 +333,8 @@ function greenFillIds(stylesXml: string) {
 function styleFillIds(stylesXml: string) {
   const cellXfs = xmlSection(stylesXml, "cellXfs");
   const result: number[] = [];
-  for (const match of cellXfs.matchAll(/<xf\b([^>]*?)(?:\/>|>(?:[\s\S]*?)<\/xf>)/g)) {
+  const tag = xmlTag("xf");
+  for (const match of cellXfs.matchAll(new RegExp(`<${tag}\\b([^>]*?)(?:\\/\\>|>(?:[\\s\\S]*?)</${tag}>)`, "g"))) {
     result.push(Number(xmlAttribute(match[1], "fillId") ?? 0));
   }
   return result;
@@ -313,7 +342,8 @@ function styleFillIds(stylesXml: string) {
 
 function sharedStrings(sharedXml: string) {
   const result: string[] = [];
-  for (const match of sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)) {
+  const tag = xmlTag("si");
+  for (const match of sharedXml.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, "g"))) {
     result.push(xmlText(match[1]));
   }
   return result;
@@ -326,7 +356,10 @@ function parseCell(attributes: string, body: string | null, strings: string[]) {
   if (!ref) return null;
   const style = Number(xmlAttribute(attributes, "s") ?? 0);
   const type = xmlAttribute(attributes, "t");
-  const value = body === null ? "" : decodeXml((/<v\b[^>]*>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? "").trim());
+  const valueTag = xmlTag("v");
+  const value = body === null
+    ? ""
+    : decodeXml((new RegExp(`<${valueTag}\\b[^>]*>([\\s\\S]*?)</${valueTag}>`).exec(body)?.[1] ?? "").trim());
   if (type === "s") {
     const index = Number(value);
     return { ref, style, value: Number.isInteger(index) ? (strings[index] ?? "") : "" } satisfies ParsedCell;
@@ -347,23 +380,14 @@ function productNameFromRow(
   fillIds: number[],
   greenFills: Set<number>,
 ) {
-  const cells: ParsedCell[] = [];
-  for (const match of rowXml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-    const cell = parseCell(match[1], match[2] ?? null, strings);
-    if (cell) cells.push(cell);
-  }
-  const nameCell = cells.find((cell) => columnLetters(cell.ref) === "B");
-  if (!nameCell || !nameCell.value) return null;
-  const hasNumericProductField = cells.some((cell) => {
-    const column = columnLetters(cell.ref);
-    return (column === "A" || column === "C" || column === "D") && /^[-+]?\d+(?:[.,]\d+)?$/.test(cell.value);
-  });
-  if (!hasNumericProductField) return null;
+  const product = isProductRow(rowAttributes, rowXml, strings);
+  if (!product) return null;
+  const { cells, name } = product;
   const rowStyle = Number(xmlAttribute(rowAttributes, "s") ?? -1);
   const green =
     greenFills.has(fillIds[rowStyle] ?? 0) ||
     cells.some((cell) => greenFills.has(fillIds[cell.style] ?? 0));
-  return green ? nameCell.value : null;
+  return green ? name : null;
 }
 
 async function scanXlsxSource(source: NewItemScanSource) {
@@ -382,7 +406,8 @@ async function scanXlsxSource(source: NewItemScanSource) {
   if (!greenFills.size) return [];
   const sheetXml = textDecoder.decode(await readZipEntry(source, sheetEntry));
   const names: string[] = [];
-  for (const match of sheetXml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
+  const tag = xmlTag("row");
+  for (const match of sheetXml.matchAll(new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)</${tag}>`, "g"))) {
     const name = productNameFromRow(match[1], match[2], strings, fillIds, greenFills);
     if (name && !names.includes(name)) {
       names.push(name);

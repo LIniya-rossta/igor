@@ -3,6 +3,8 @@ import { getDb } from "@/db";
 import { priceNewItems, priceVersions } from "@/db/schema";
 import { priceInfo } from "@/app/price-config";
 import { excelContentDisposition } from "@/lib/excel-file";
+import { extractNewProductNamesFromExcelObject } from "@/lib/xlsx-new-items";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 
 export type PriceVersion = typeof priceVersions.$inferSelect;
 
@@ -48,11 +50,39 @@ export async function getRecentPriceVersions(limit = 5) {
 export async function getCurrentNewItems() {
   const current = await getCurrentPriceVersion();
   if (!current) return [];
-  return getDb()
+  const database = getDb();
+  const rows = await database
     .select({ productName: priceNewItems.productName })
     .from(priceNewItems)
     .where(eq(priceNewItems.priceVersionId, current.id))
     .orderBy(priceNewItems.position);
+
+  if (rows.length > 0) return rows.map((row) => row.productName);
+
+  // Older publications were created before the namespace-aware Excel scanner
+  // was fixed. Recover their marked rows lazily from the already stored R2
+  // object, then persist them so the next request is a normal D1 read.
+  try {
+    const recovered = await extractNewProductNamesFromExcelObject(
+      getRuntimeEnv().PRICE_FILES,
+      current.objectKey,
+      current.originalName,
+    );
+    if (recovered.length === 0) return [];
+    await database
+      .insert(priceNewItems)
+      .values(
+        recovered.map((productName, position) => ({
+          priceVersionId: current.id,
+          position,
+          productName,
+        })),
+      )
+      .onConflictDoNothing();
+    return recovered;
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -66,7 +96,7 @@ export function getCachedCurrentNewItems() {
     return currentNewItemsCache.request;
   }
 
-  const request = getCurrentNewItems().then((rows) => rows.map((row) => row.productName));
+  const request = getCurrentNewItems();
   currentNewItemsCache = {
     request,
     expiresAt: now + NEW_ITEMS_CACHE_TTL_MS,
