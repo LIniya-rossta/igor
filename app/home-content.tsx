@@ -53,8 +53,9 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           <span className="brand-sub">computers</span>
         </a>
 
-        <nav className="nav-links" aria-label={copy.navPrice}>
+        <nav className="nav-links" aria-label="Основная навигация">
           <a href="#price">{copy.navPrice}</a>
+          <a href="#new-items">{copy.navNewItems}</a>
         </nav>
 
         <div className="header-tools">
