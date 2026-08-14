@@ -60,13 +60,11 @@ export default function LineSidebar({
   const targetsRef = useRef<number[]>([]);
   const currentRef = useRef<number[]>([]);
   const rafRef = useRef<number | null>(null);
+  const runFrameRef = useRef<(now: number) => void>(() => undefined);
   const lastRef = useRef(0);
   const activeRef = useRef(defaultActive);
   const smoothingRef = useRef(smoothing);
   const [activeIndex, setActiveIndex] = useState(defaultActive);
-
-  activeRef.current = activeIndex;
-  smoothingRef.current = smoothing;
 
   const runFrame = useCallback((now: number) => {
     const dt = Math.min((now - lastRef.current) / 1000, 0.05);
@@ -88,14 +86,14 @@ export default function LineSidebar({
       if (!settled) moving = true;
     }
 
-    rafRef.current = moving ? window.requestAnimationFrame(runFrame) : null;
+    rafRef.current = moving ? window.requestAnimationFrame(runFrameRef.current) : null;
   }, []);
 
   const startLoop = useCallback(() => {
     if (rafRef.current !== null) return;
     lastRef.current = performance.now();
-    rafRef.current = window.requestAnimationFrame(runFrame);
-  }, [runFrame]);
+    rafRef.current = window.requestAnimationFrame(runFrameRef.current);
+  }, []);
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLUListElement>) => {
     const list = listRef.current;
@@ -116,7 +114,7 @@ export default function LineSidebar({
     startLoop();
   }, [startLoop]);
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLLIElement>, index: number) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       setActiveIndex(index);
@@ -133,6 +131,16 @@ export default function LineSidebar({
     next?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     setActiveIndex(nextIndex);
   };
+
+  useEffect(() => {
+    runFrameRef.current = runFrame;
+  }, [runFrame]);
+
+  useEffect(() => {
+    activeRef.current = activeIndex;
+    smoothingRef.current = smoothing;
+    startLoop();
+  }, [activeIndex, smoothing, startLoop]);
 
   useEffect(() => {
     currentRef.current = items.map((_, index) => currentRef.current[index] || 0);
@@ -171,20 +179,23 @@ export default function LineSidebar({
             key={`${label}-${index}`}
             ref={(element) => { itemRefs.current[index] = element; }}
             className="line-sidebar__item"
-            role="button"
-            aria-current={activeIndex === index ? "true" : undefined}
-            tabIndex={0}
-            onClick={() => {
-              setActiveIndex(index);
-              onItemClick?.(index, label);
-            }}
-            onKeyDown={(event) => handleKeyDown(event, index)}
           >
             {showMarker && <span className="line-sidebar__marker" aria-hidden="true" />}
-            <span className="line-sidebar__label">
-              {showIndex && <span className="line-sidebar__index">{String(index + 1).padStart(2, "0")}</span>}
-              <span className="line-sidebar__text">{label}</span>
-            </span>
+            <button
+              type="button"
+              className="line-sidebar__button"
+              aria-current={activeIndex === index ? "true" : undefined}
+              onClick={() => {
+                setActiveIndex(index);
+                onItemClick?.(index, label);
+              }}
+              onKeyDown={(event) => handleKeyDown(event, index)}
+            >
+              <span className="line-sidebar__label">
+                {showIndex && <span className="line-sidebar__index">{String(index + 1).padStart(2, "0")}</span>}
+                <span className="line-sidebar__text">{label}</span>
+              </span>
+            </button>
           </li>
         ))}
       </ul>

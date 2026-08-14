@@ -16,6 +16,7 @@ import {
 } from "./live-price";
 
 const telegramUrl = "https://t.me/unb_computers";
+const whatsappUrl = "https://wa.me/996555342425";
 
 type HomeContentProps = {
   initialNewItems: string[];
@@ -49,8 +50,8 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
 
       <header className="site-header">
         <a className="brand" href="#top" aria-label={copy.homeLabel}>
-          <span className="brand-main">UnB</span>
-          <span className="brand-sub">computers</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="brand-logo" src="/unb-logo.png" alt="UnB computers" width="1036" height="1020" />
         </a>
 
         <nav className="nav-links" aria-label="Основная навигация">
@@ -116,7 +117,15 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           <div className="hero-grid" aria-hidden="true" />
           <div className="logo-panel">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/unb-logo.png" alt="Логотип UnB computers" width="633" height="627" />
+            <img
+              src="/unb-logo.png"
+              alt="Логотип UnB computers"
+              width="1036"
+              height="1020"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+            />
           </div>
           <div className="visual-caption"><span>UNB / 2026</span><span>BISHKEK, KG</span></div>
         </div>
@@ -129,9 +138,6 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           <span className="section-kicker section-kicker-light">{copy.price.kicker}</span>
           <h2>{copy.price.title[0]}<br />{copy.price.title[1]}</h2>
           <p>{copy.price.description}</p>
-          <ul className="price-features">
-            {copy.price.features.map((feature) => <li key={feature}><span>✓</span> {feature}</li>)}
-          </ul>
         </div>
 
         <div className="price-window">
@@ -185,18 +191,24 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
           </div>
           <div className="contact-side">
             <p>{copy.contactBlock.description}</p>
-            <a href={telegramUrl} className="contact-button" target="_blank" rel="noopener noreferrer">
-              <span className="contact-button__label">{copy.contactBlock.button}</span>
-              <span className="contact-button__icon" aria-hidden="true">↗</span>
-            </a>
+            <div className="contact-buttons">
+              <a href={telegramUrl} className="contact-button" target="_blank" rel="noopener noreferrer">
+                <span className="contact-button__label">{copy.contactBlock.button}</span>
+                <span className="contact-button__icon" aria-hidden="true">↗</span>
+              </a>
+              <a href={whatsappUrl} className="contact-button contact-button--whatsapp" target="_blank" rel="noopener noreferrer">
+                <span className="contact-button__label">{copy.contactBlock.whatsappButton}</span>
+                <span className="contact-button__icon" aria-hidden="true">↗</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
       <footer className="site-footer shell">
         <a className="brand brand-footer" href="#top" aria-label={copy.topLabel}>
-          <span className="brand-main">UnB</span>
-          <span className="brand-sub">computers</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="brand-logo" src="/unb-logo.png" alt="UnB computers" width="1036" height="1020" />
         </a>
         <p>{copy.footerDescription}</p>
         <div><span>© 2026 UnB computers</span><a href="#top">{copy.backToTop}</a></div>

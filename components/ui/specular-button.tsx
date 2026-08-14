@@ -135,7 +135,7 @@ export default function SpecularButton({
     if (!button || !effect || typeof window === "undefined") return;
 
     let renderer: Renderer | null = null;
-    let frame = 0;
+    let frame: number | null = null;
     try {
       renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: true, dpr: Math.min(window.devicePixelRatio || 1, 2) });
       const gl = renderer.gl;
@@ -199,10 +199,16 @@ export default function SpecularButton({
       let last = performance.now();
       const line = new Color();
       const base = new Color();
+      let lineKey = "";
+      let baseKey = "";
+      let lineValue = [1, 1, 1];
+      let baseValue = [0.32, 0.32, 0.32];
+      let isVisible = true;
+      let schedule = () => undefined;
       const update = (now: number) => {
         const currentRenderer = renderer;
-        if (!currentRenderer) return;
-        frame = window.requestAnimationFrame(update);
+        frame = null;
+        if (!currentRenderer || !isVisible || document.hidden) return;
         const delta = Math.min((now - last) / 1000, 0.05);
         last = now;
         const props = propsRef.current;
@@ -213,23 +219,52 @@ export default function SpecularButton({
         angle += difference * (1 - Math.exp(-delta * 7));
         const targetBrightness = props.autoAnimate ? 1 : proximityValue;
         brightness += (targetBrightness - brightness) * (1 - Math.exp(-delta * 8));
-        line.set(props.lineColor);
-        base.set(props.baseColor);
+        if (props.lineColor !== lineKey) {
+          lineKey = props.lineColor;
+          line.set(lineKey);
+          lineValue = [line.r, line.g, line.b];
+        }
+        if (props.baseColor !== baseKey) {
+          baseKey = props.baseColor;
+          base.set(baseKey);
+          baseValue = [base.r, base.g, base.b];
+        }
         program.uniforms.uAngle.value = angle;
         program.uniforms.uRadius.value = Math.min(props.radius, Math.min(size.width, size.height) / 2) * currentRenderer.dpr;
-        program.uniforms.uLineColor.value = [line.r, line.g, line.b];
-        program.uniforms.uBaseColor.value = [base.r, base.g, base.b];
+        program.uniforms.uLineColor.value = lineValue;
+        program.uniforms.uBaseColor.value = baseValue;
         program.uniforms.uIntensity.value = props.intensity * brightness;
         program.uniforms.uShineSize.value = (props.shineSize * Math.PI) / 180;
         program.uniforms.uShineFade.value = (props.shineFade * Math.PI) / 180;
         program.uniforms.uThickness.value = props.thickness * currentRenderer.dpr;
         currentRenderer.render({ scene: mesh });
+        schedule();
       };
-      frame = window.requestAnimationFrame(update);
+      schedule = () => {
+        if (frame === null && isVisible && !document.hidden) frame = window.requestAnimationFrame(update);
+      };
+      const visibilityObserver = new IntersectionObserver((entries) => {
+        isVisible = entries[0]?.isIntersecting !== false;
+        if (isVisible) schedule();
+      }, { threshold: 0.05 });
+      visibilityObserver.observe(button);
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          if (frame !== null) window.cancelAnimationFrame(frame);
+          frame = null;
+          return;
+        }
+        last = performance.now();
+        schedule();
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      schedule();
 
       return () => {
-        window.cancelAnimationFrame(frame);
+        if (frame !== null) window.cancelAnimationFrame(frame);
         resizeObserver.disconnect();
+        visibilityObserver.disconnect();
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
         window.removeEventListener("pointermove", handlePointerMove);
         if (gl.canvas.parentNode === effect) effect.removeChild(gl.canvas);
         gl.getExtension("WEBGL_lose_context")?.loseContext();

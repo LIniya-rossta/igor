@@ -40,7 +40,6 @@ export default function CountUp({
 
     if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    setValue(startValue);
 
     const run = () => {
       if (!active) return;

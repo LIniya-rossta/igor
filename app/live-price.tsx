@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { priceInfo } from "./price-config";
 import CountUp from "./CountUp";
 import LineSidebar from "./LineSidebar";
@@ -34,8 +34,15 @@ const fallbackMeta: PriceMeta = {
 };
 
 const META_TTL_MS = 60_000;
-let metaCache: { request: Promise<PriceMeta>; expiresAt: number } | null = null;
 let newItemsCache: { request: Promise<string[]>; expiresAt: number } | null = null;
+
+// All price labels share one small external store. Previously each label
+// started its own interval and request, which meant four timers and four
+// metadata refreshes on every page. One store keeps the UI in sync while
+// avoiding duplicate work.
+let sharedMeta = fallbackMeta;
+let metaStoreStarted = false;
+const metaListeners = new Set<() => void>();
 
 function formatNewItemsNoun(count: number, language: Language) {
   const mod10 = count % 10;
@@ -61,17 +68,45 @@ function formatUpdatedDate(value: string, language: Language) {
 }
 
 function loadMeta() {
-  const now = Date.now();
-  if (metaCache && metaCache.expiresAt > now) return metaCache.request;
-
-  const request = fetch("/api/price/meta", { cache: "default" })
+  return fetch("/api/price/meta", { cache: "no-store" })
     .then((response) => {
       if (!response.ok) throw new Error("Price metadata request failed");
       return response.json() as Promise<PriceMeta>;
     })
     .catch(() => fallbackMeta);
-  metaCache = { request, expiresAt: now + META_TTL_MS };
-  return request;
+}
+
+function refreshSharedMeta() {
+  void loadMeta().then((nextMeta) => {
+    const changed = JSON.stringify(nextMeta) !== JSON.stringify(sharedMeta);
+    if (!changed) return;
+    sharedMeta = nextMeta;
+    metaListeners.forEach((listener) => listener());
+  });
+}
+
+function startMetaStore() {
+  if (metaStoreStarted || typeof window === "undefined") return;
+  metaStoreStarted = true;
+  refreshSharedMeta();
+  window.setInterval(refreshSharedMeta, META_TTL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshSharedMeta();
+  }, { passive: true });
+}
+
+function subscribeMeta(listener: () => void) {
+  startMetaStore();
+  metaListeners.add(listener);
+  return () => metaListeners.delete(listener);
+}
+
+function getMetaSnapshot() {
+  return sharedMeta;
+}
+
+function getServerMetaSnapshot() {
+  return fallbackMeta;
 }
 
 function loadNewItems() {
@@ -94,24 +129,7 @@ function loadNewItems() {
 }
 
 function usePriceMeta() {
-  const [meta, setMeta] = useState(fallbackMeta);
-
-  useEffect(() => {
-    let active = true;
-    const refresh = () => {
-      void loadMeta().then((nextMeta) => {
-        if (active) setMeta(nextMeta);
-      });
-    };
-    refresh();
-    const interval = window.setInterval(refresh, META_TTL_MS);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  return meta;
+  return useSyncExternalStore(subscribeMeta, getMetaSnapshot, getServerMetaSnapshot);
 }
 
 export function LivePriceDate() {

@@ -35,17 +35,32 @@
   min-height: 44px;
   display: flex;
   align-items: center;
-  cursor: pointer;
   outline: none;
+}
+
+.line-sidebar__button {
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .line-sidebar__item::before {
   content: "";
   position: absolute;
   inset: -7px -14px;
+  pointer-events: none;
 }
 
-.line-sidebar__item:focus-visible .line-sidebar__label {
+.line-sidebar__button:focus-visible .line-sidebar__label {
   outline: 2px solid var(--accent-color);
   outline-offset: 5px;
 }
@@ -119,6 +134,10 @@
     min-height: 0 !important;
     margin: 0 0 32px !important;
     width: 100%;
+  }
+  .line-sidebar__button {
+    min-height: 0;
+    display: block;
   }
   .line-sidebar__item:last-child {
     margin-bottom: 0 !important;

@@ -42,5 +42,6 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+/.railway-data/
 /.telegram-bot-api/
 *.tsbuildinfo

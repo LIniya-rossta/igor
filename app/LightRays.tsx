@@ -130,7 +130,10 @@ export default function LightRays({
 }: LightRaysProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const propsRef = useRef({ raysOrigin, raysColor, raysSpeed, lightSpread, rayLength, pulsating, fadeDistance, followMouse, mouseInfluence });
-  propsRef.current = { raysOrigin, raysColor, raysSpeed, lightSpread, rayLength, pulsating, fadeDistance, followMouse, mouseInfluence };
+
+  useEffect(() => {
+    propsRef.current = { raysOrigin, raysColor, raysSpeed, lightSpread, rayLength, pulsating, fadeDistance, followMouse, mouseInfluence };
+  }, [raysOrigin, raysColor, raysSpeed, lightSpread, rayLength, pulsating, fadeDistance, followMouse, mouseInfluence]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -170,6 +173,18 @@ export default function LightRays({
     let frame: number | null = null;
     let visible = true;
     let lastTime = performance.now();
+    let placementOrigin = "";
+    let colorKey = "";
+    let rayColor = [1, 1, 1];
+
+    const applyPlacement = () => {
+      const placement = getAnchorAndDirection(propsRef.current.raysOrigin, canvas.width, canvas.height);
+      placementOrigin = propsRef.current.raysOrigin;
+      gl.useProgram(program);
+      gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
+      gl.uniform2f(uniforms.rayPos, placement.anchor[0], placement.anchor[1]);
+      gl.uniform2f(uniforms.rayDir, placement.direction[0], placement.direction[1]);
+    };
 
     const resize = () => {
       const width = Math.max(1, container.clientWidth);
@@ -182,12 +197,10 @@ export default function LightRays({
       canvas.style.width = "100%";
       canvas.style.height = "100%";
       gl.viewport(0, 0, canvas.width, canvas.height);
-      const placement = getAnchorAndDirection(propsRef.current.raysOrigin, canvas.width, canvas.height);
-      gl.useProgram(program);
-      gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
-      gl.uniform2f(uniforms.rayPos, placement.anchor[0], placement.anchor[1]);
-      gl.uniform2f(uniforms.rayDir, placement.direction[0], placement.direction[1]);
+      applyPlacement();
     };
+
+    let schedule = () => undefined;
 
     const render = (time: number) => {
       frame = null;
@@ -197,13 +210,14 @@ export default function LightRays({
       smoothMouse.x += (targetMouse.x - smoothMouse.x) * Math.min(1, delta * 4);
       smoothMouse.y += (targetMouse.y - smoothMouse.y) * Math.min(1, delta * 4);
       const props = propsRef.current;
-      const placement = getAnchorAndDirection(props.raysOrigin, canvas.width, canvas.height);
+      if (props.raysOrigin !== placementOrigin) applyPlacement();
+      if (props.raysColor !== colorKey) {
+        colorKey = props.raysColor;
+        rayColor = hexToRgb(colorKey);
+      }
       gl.useProgram(program);
       gl.uniform1f(uniforms.time, time * 0.001);
-      gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
-      gl.uniform2f(uniforms.rayPos, placement.anchor[0], placement.anchor[1]);
-      gl.uniform2f(uniforms.rayDir, placement.direction[0], placement.direction[1]);
-      gl.uniform3fv(uniforms.color, hexToRgb(props.raysColor));
+      gl.uniform3fv(uniforms.color, rayColor);
       gl.uniform1f(uniforms.speed, props.raysSpeed);
       gl.uniform1f(uniforms.spread, props.lightSpread);
       gl.uniform1f(uniforms.length, props.rayLength);
@@ -219,7 +233,11 @@ export default function LightRays({
       gl.enableVertexAttribArray(position);
       gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-      frame = window.requestAnimationFrame(render);
+      schedule();
+    };
+
+    schedule = () => {
+      if (frame === null && visible && !document.hidden) frame = window.requestAnimationFrame(render);
     };
 
     const resizeObserver = new ResizeObserver(resize);
@@ -228,10 +246,20 @@ export default function LightRays({
       visible = entries[0]?.isIntersecting !== false;
       if (visible && frame === null) {
         lastTime = performance.now();
-        frame = window.requestAnimationFrame(render);
+        schedule();
       }
     }, { threshold: 0.05 });
     visibilityObserver.observe(container);
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (frame !== null) window.cancelAnimationFrame(frame);
+        frame = null;
+        return;
+      }
+      lastTime = performance.now();
+      schedule();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     const handleMouseMove = (event: MouseEvent) => {
       const rect = container.getBoundingClientRect();
       targetMouse.x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
@@ -243,12 +271,13 @@ export default function LightRays({
       container.addEventListener("mouseleave", handleMouseLeave);
     }
     resize();
-    frame = window.requestAnimationFrame(render);
+    schedule();
 
     return () => {
       if (frame !== null) window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       visibilityObserver.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("mouseleave", handleMouseLeave);
       gl.deleteBuffer(buffer);
@@ -256,7 +285,7 @@ export default function LightRays({
       gl.getExtension("WEBGL_lose_context")?.loseContext();
       canvas.remove();
     };
-  }, []);
+  }, [followMouse]);
 
   return <div ref={containerRef} className={`light-rays-container${className ? ` ${className}` : ""}`} aria-hidden="true" />;
 }

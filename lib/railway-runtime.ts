@@ -473,7 +473,10 @@ let cachedRuntime: RailwayRuntime | null = null;
 
 export function isRailwayNodeRuntime() {
   const processLike = nodeProcess();
-  return Boolean(processLike?.env?.RAILWAY_ENVIRONMENT_ID);
+  // Railway sets RAILWAY_ENVIRONMENT_ID, but local `vinext start` also runs
+  // the Node adapter. Detect the runtime by Node's built-in module loader so
+  // local production smoke tests do not attempt to import `cloudflare:` URLs.
+  return Boolean(processLike?.versions?.node && processLike.getBuiltinModule);
 }
 
 export function getRailwayRuntime(): RailwayRuntime {
