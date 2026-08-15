@@ -221,8 +221,11 @@ h1, h2, h3, p { margin: 0; }
 .contact-side { position: relative; z-index: 1; max-width: 390px; justify-self: end; }
 .contact-side p { color: rgba(7,22,36,.65); font-size: 14px; line-height: 1.7; }
 .contact-buttons { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 22px; }
-.contact-button { min-width: 0; min-height: 62px; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; background: var(--navy); color: var(--white); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 12px; font-weight: 750; line-height: 1.25; }
-.contact-button--whatsapp { background: #173d2d; }
+.contact-button { min-width: 0; min-height: 62px; padding: 0 18px 0 16px; display: flex; justify-content: space-between; align-items: center; background: var(--navy); color: var(--white); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 12px; font-weight: 750; line-height: 1.25; transition: box-shadow .25s ease; }
+.contact-button--whatsapp { background: var(--navy); }
+.contact-button__icon { transition: transform .25s ease; }
+.contact-button:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,.16); }
+.contact-button:hover .contact-button__icon { transform: translateX(3px); }
 
 .site-footer { min-height: 220px; padding: 46px max(24px, calc((100vw - 1180px) / 2)); display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: var(--paper); }
 .brand-footer .brand-main { color: var(--navy); }
