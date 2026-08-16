@@ -343,7 +343,7 @@ export default function PriceUploadPage() {
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a className={styles.brand} href="/" aria-label="UnB computers — на главную">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className={styles.brandLogo} src="/unb-logo.png" alt="UnB computers" width="1036" height="1020" />
+            <img className={styles.brandLogo} src="/unb-logo.png" alt="UnB computers" width="666" height="304" />
           </a>
           <div className={styles.secureLabel}>
             <i aria-hidden="true" />
