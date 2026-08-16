@@ -32,10 +32,11 @@
 }
 
 .brandLogo {
-  width: 78px;
-  height: 78px;
-  object-fit: cover;
-  border: 1px solid rgba(255, 189, 31, 0.2);
+  display: block;
+  width: 106px;
+  height: auto;
+  object-fit: contain;
+  border: 0;
 }
 
 .brand span {
