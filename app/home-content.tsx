@@ -51,7 +51,7 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
       <header className="site-header">
         <a className="brand" href="#top" aria-label={copy.homeLabel}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="brand-logo" src="/unb-logo.png" alt="UnB computers" width="666" height="304" />
+          <img className="brand-logo" src="/unb-logo.png" alt="UnB computers" width="1036" height="1020" />
         </a>
 
         <nav className="nav-links" aria-label="Основная навигация">
@@ -120,8 +120,8 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
             <img
               src="/unb-logo.png"
               alt="Логотип UnB computers"
-              width="666"
-              height="304"
+              width="1036"
+              height="1020"
               loading="eager"
               fetchPriority="high"
               decoding="async"
@@ -208,7 +208,7 @@ export default function HomeContent({ initialNewItems }: HomeContentProps) {
       <footer className="site-footer shell">
         <a className="brand brand-footer" href="#top" aria-label={copy.topLabel}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="brand-logo" src="/unb-logo.png" alt="UnB computers" width="666" height="304" />
+          <img className="brand-logo" src="/unb-logo.png" alt="UnB computers" width="1036" height="1020" />
         </a>
         <p>{copy.footerDescription}</p>
         <div><span>© 2026 UnB computers</span><a href="#top">{copy.backToTop}</a></div>
